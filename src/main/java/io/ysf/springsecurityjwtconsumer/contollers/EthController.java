@@ -30,8 +30,7 @@ public class EthController {
 
 		String url = "https://kovan.infura.io/v3/1bc7f1f7e1404bf5a2a59e8937e741ca";
 		String ethAddressAccount1 = "0x515Dba6A9c2f35baAa8ef5c4748819EFa0Ad6692";
-		String ethPrivateKeyAccount1 = "0x568ae25188390df509f11da22eaf546070a6b7a21e9ecd94aaac58f2ec833bfe";
-
+		
 		Web3j client = Web3j.build(new HttpService(url));
 
 		try {
