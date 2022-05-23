@@ -11,7 +11,7 @@
 	<groupId>io.ysf</groupId>
 	<artifactId>springsecurityjwtconsumer</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<name>springsecurityjwtconsumer</name>
 	<description>Demo project for Spring Boot Spring Security JWT Consumer</description>
 	<properties>
@@ -42,6 +42,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.web3j</groupId>
+			<artifactId>core</artifactId>
+			<version>4.8.9</version>
+		</dependency>
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.9.3</version>
 		</dependency>
 	</dependencies>
 
