@@ -1,1 +1,2 @@
 https://docs.web3j.io/4.8.7/transactions/transfer_eth/#transfer-of-ether-from-one-party-to-another
+web3j generate solidity -a SimpleStorage.abi -o C:/Test/spring-security-jwt-consumer/src/main/java/io/ysf/springsecurityjwtconsumer -p io.ysf.springsecurityjwtconsumer.contracts

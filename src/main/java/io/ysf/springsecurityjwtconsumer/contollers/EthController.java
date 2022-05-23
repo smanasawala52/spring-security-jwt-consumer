@@ -1,6 +1,8 @@
 package io.ysf.springsecurityjwtconsumer.contollers;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import org.springframework.web.servlet.ModelAndView;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
+import org.web3j.protocol.core.methods.response.EthGasPrice;
 import org.web3j.protocol.core.methods.response.EthGetBalance;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
@@ -17,12 +20,12 @@ import org.web3j.tx.Transfer;
 import org.web3j.utils.Convert;
 
 import io.ysf.springsecurityjwtconsumer.config.EthAccountConfig;
+import io.ysf.springsecurityjwtconsumer.contracts.SimpleStorage;
 
 @RestController
 public class EthController {
 
-	private static final String GAS_PRICE = null;
-	private static final String GAS_LIMIT = null;
+	private static final BigInteger GAS_LIMIT = new BigInteger("200000");
 	@Autowired
 	private EthAccountConfig ethAccountConfig;
 
@@ -135,11 +138,25 @@ public class EthController {
 		Web3j client = Web3j.build(new HttpService(url));
 		Credentials credentials = Credentials.create(ethPrivateKeyAccount1);
 
-		YourSmartContract contract = YourSmartContract.load(
-				"0x<address>|<ensName>", client, credentials, GAS_PRICE,
-				GAS_LIMIT);
+		try {
+			SimpleStorage contract = SimpleStorage.load(ethAddressAccount1,
+					client, credentials, requestCurrentGasPrice(), GAS_LIMIT);
+			modelAndView.addObject("beforeRetrive",
+					contract.retrive().sendAsync().get(10, TimeUnit.SECONDS));
+			contract.store(new BigInteger("150"));
+			modelAndView.addObject("afterRetrive",
+					contract.retrive().sendAsync().get(10, TimeUnit.SECONDS));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		return modelAndView;
 	}
 
+	public BigInteger requestCurrentGasPrice() throws IOException {
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		EthGasPrice ethGasPrice = web3j.ethGasPrice().send();
+		return ethGasPrice.getGasPrice();
+	}
 }
