@@ -1,20 +1,31 @@
 package io.ysf.springsecurityjwtconsumer.contollers;
 
-import java.util.concurrent.ExecutionException;
+import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.response.EthGetBalance;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.tx.Transfer;
 import org.web3j.utils.Convert;
+
+import io.ysf.springsecurityjwtconsumer.config.EthAccountConfig;
 
 @RestController
 public class EthController {
+
+	private static final String GAS_PRICE = null;
+	private static final String GAS_LIMIT = null;
+	@Autowired
+	private EthAccountConfig ethAccountConfig;
+
 	@GetMapping("/eth")
 	public ModelAndView getEthHomePage() {
 		ModelAndView modelAndView = new ModelAndView("ethWalletHome");
@@ -24,30 +35,109 @@ public class EthController {
 	@GetMapping("/ethConnectWallet")
 	public ModelAndView ethConnectWallet() {
 		ModelAndView modelAndView = new ModelAndView("ethWallet");
-//		String url = "HTTP://127.0.0.1:7545";
-//		String ethAddressAccount1 = "0x14494c0A9ADd1314286d523C04F17F1D698722c0";
-//		String ethPrivateKeyAccount1 = "0x0c51696558fb2ed5412ec432945a2939fe3fe13afdb69136c8251e3eeec4185b";
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		System.out.println("URL: " + ethAccountConfig.getUrl());
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		String ethPrivateKeyAccount1 = ethAccountConfig
+				.getEthPrivateKeyAccount1();
 
-		String url = "https://kovan.infura.io/v3/1bc7f1f7e1404bf5a2a59e8937e741ca";
-		String ethAddressAccount1 = "0x515Dba6A9c2f35baAa8ef5c4748819EFa0Ad6692";
-		
+		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
+
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		String ethPrivateKeyAccount2 = ethAccountConfig
+				.getEthPrivateKeyAccount2();
+
+		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
+
 		Web3j client = Web3j.build(new HttpService(url));
 
 		try {
-			EthGetBalance balance = client.ethGetBalance(ethAddressAccount1, DefaultBlockParameter.valueOf("latest"))
+			EthGetBalance balance = client
+					.ethGetBalance(ethAddressAccount1,
+							DefaultBlockParameter.valueOf("latest"))
 					.sendAsync().get(10, TimeUnit.SECONDS);
-			System.out.println("Balance: " + balance.getBalance());
-			modelAndView.addObject("balance", Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (TimeoutException e) {
-			// TODO Auto-generated catch block
+			System.out
+					.println("account1BeforeBalance: " + balance.getBalance());
+			modelAndView.addObject("account1BeforeBalance", Convert.fromWei(
+					balance.getBalance().toString(), Convert.Unit.ETHER));
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		try {
+			EthGetBalance balance = client
+					.ethGetBalance(ethAddressAccount2,
+							DefaultBlockParameter.valueOf("latest"))
+					.sendAsync().get(10, TimeUnit.SECONDS);
+			System.out
+					.println("account2BeforeBalance: " + balance.getBalance());
+			modelAndView.addObject("account2BeforeBalance", Convert.fromWei(
+					balance.getBalance().toString(), Convert.Unit.ETHER));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		Credentials credentials;
+		try {
+			credentials = Credentials.create(ethPrivateKeyAccount1);
+			TransactionReceipt transactionReceipt = Transfer
+					.sendFunds(client, credentials, ethAddressAccount2,
+							BigDecimal.valueOf(0.01), Convert.Unit.ETHER)
+					.send();
+			modelAndView.addObject("transactionReceipt", transactionReceipt);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			EthGetBalance balance = client
+					.ethGetBalance(ethAddressAccount1,
+							DefaultBlockParameter.valueOf("latest"))
+					.sendAsync().get(10, TimeUnit.SECONDS);
+			System.out.println("account1Balance: " + balance.getBalance());
+			modelAndView.addObject("account1Balance", Convert.fromWei(
+					balance.getBalance().toString(), Convert.Unit.ETHER));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			EthGetBalance balance = client
+					.ethGetBalance(ethAddressAccount2,
+							DefaultBlockParameter.valueOf("latest"))
+					.sendAsync().get(10, TimeUnit.SECONDS);
+			System.out.println("account2Balance: " + balance.getBalance());
+			modelAndView.addObject("account2Balance", Convert.fromWei(
+					balance.getBalance().toString(), Convert.Unit.ETHER));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return modelAndView;
+	}
+
+	@GetMapping("/ethSimpleStorage")
+	public ModelAndView ethSimpleStorage() {
+		ModelAndView modelAndView = new ModelAndView("ethSimpleStorage");
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		System.out.println("URL: " + ethAccountConfig.getUrl());
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		String ethPrivateKeyAccount1 = ethAccountConfig
+				.getEthPrivateKeyAccount1();
+
+		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
+
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		String ethPrivateKeyAccount2 = ethAccountConfig
+				.getEthPrivateKeyAccount2();
+
+		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
+
+		Web3j client = Web3j.build(new HttpService(url));
+		Credentials credentials = Credentials.create(ethPrivateKeyAccount1);
+
+		YourSmartContract contract = YourSmartContract.load(
+				"0x<address>|<ensName>", client, credentials, GAS_PRICE,
+				GAS_LIMIT);
 
 		return modelAndView;
 	}
