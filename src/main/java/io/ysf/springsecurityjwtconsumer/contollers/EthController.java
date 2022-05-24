@@ -1,7 +1,6 @@
 package io.ysf.springsecurityjwtconsumer.contollers;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +22,6 @@ import org.web3j.tx.gas.StaticGasProvider;
 import org.web3j.utils.Convert;
 
 import io.ysf.springsecurityjwtconsumer.config.EthAccountConfig;
-import io.ysf.springsecurityjwtconsumer.contracts.People;
 import io.ysf.springsecurityjwtconsumer.contracts.SimpleStorage;
 
 @RestController
@@ -146,16 +144,16 @@ public class EthController {
 			modelAndView.addObject("beforeRetrive", contract2.retrive().send().toString());
 			contract2.store(new BigInteger("12321")).send();
 			modelAndView.addObject("afterRetrive", contract2.retrive().send().toString());
-			io.ysf.springsecurityjwtconsumer.contracts.People tx = (People) contract2.getPerson().send();
-			tx.toString();
-			System.out.println(tx.getClass());
-			for (Field field : tx.getClass().getDeclaredFields()) {
-				field.setAccessible(true); // You might want to set modifier to public first.
-				Object value = field.get(tx);
-				if (value != null) {
-					System.out.println(field.getName() + "=" + value.getClass());
-				}
-			}
+//			io.ysf.springsecurityjwtconsumer.contracts.People tx = contract2.getPerson().send();
+//			tx.toString();
+//			System.out.println(tx.getClass());
+//			for (Field field : tx.getClass().getDeclaredFields()) {
+//				field.setAccessible(true); // You might want to set modifier to public first.
+//				Object value = field.get(tx);
+//				if (value != null) {
+//					System.out.println(field.getName() + "=" + value.getClass());
+//				}
+//			}
 //
 //			Class returnType = Pe;
 //			Object value = result.getValue();
