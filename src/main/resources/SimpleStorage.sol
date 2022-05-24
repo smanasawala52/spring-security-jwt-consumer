@@ -1,40 +1,56 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.6.6;
-pragma experimental ABIEncoderV2;
-struct Person {
-    uint256  favoriteNumber  ;
-    string  name  ;
-}
-contract SimpleStorage {
-    // this will init to 0
-    uint256  private favoriteUInt  ;
-    address private owner ;
-    constructor() public{
-        owner = msg.sender;
-    }
-    
-Person private person =  Person({favoriteNumber:1,name:"Shabbir"});
-Person[] private people;
-mapping(uint256 => Person) private peopleMap;
+pragma solidity ^0.8.0;
 
-    function store(uint256 _favoriteUInt) public{
-        favoriteUInt = _favoriteUInt;
+contract SimpleStorage {
+    uint256 private favoriteNumber;
+    string private message;
+    address private owner;
+
+    //constructor() {
+    //    owner = msg.sender;
+    //}
+	constructor(string memory _msg) {
+        owner = msg.sender;
+        message = _msg;
     }
-    function retrive() public view returns(uint256){
-        return favoriteUInt;
+
+    struct People {
+        uint256 favoriteNumber;
+        string name;
     }
-    function multiply (uint256 _favoriteUInt1,uint256 _favoriteUInt2) public pure returns(uint256){ 
-        return _favoriteUInt1*_favoriteUInt2;
+    People private person = People({favoriteNumber: 1, name: "Shabbir"});
+    mapping(string => People) private people;
+
+    function addPerson(string memory _name, uint256 _favNum) public {
+        People memory p = People({favoriteNumber: _favNum, name: _name});
+        people[_name] = p;
     }
-    function addPerson(uint256 _favNum, string memory _name )  public {
-        Person memory p  =  Person({favoriteNumber:_favNum,name:_name});
-        people.push(p);
-        peopleMap[_favNum] = p;
+
+    function retrivePeople(string memory _name)
+        public
+        view
+        returns (People memory)
+    {
+        return people[_name];
     }
-     function retrivePerson(uint256 _favNum) public view returns(Person memory){
-        return peopleMap[_favNum];
+
+    function store(uint256 _favNum) public {
+        favoriteNumber = _favNum;
     }
-    function retriveAllPeople() public view returns(Person[] memory){
-        return people;
+
+    function retrive() public view returns (uint256) {
+        return favoriteNumber;
+    }
+
+    function getPerson() public view returns (People memory) {
+        return person;
+    }
+
+    function getMessage() public view returns (string memory) {
+        return message;
+    }
+
+    function getOwner() public view returns (address) {
+        return owner;
     }
 }
