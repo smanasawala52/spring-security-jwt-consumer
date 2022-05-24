@@ -166,7 +166,7 @@ public class EthController {
 //						"Unable to convert response: " + value + " to expected type: " + returnType.getSimpleName());
 //			}
 
-			System.out.println(tx.toString() + "");
+			// System.out.println(tx.toString() + "");
 //			System.out.println(contract2.retrivePeople("Ted").send());
 // 
 
