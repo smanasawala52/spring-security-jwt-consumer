@@ -16,8 +16,20 @@ public class EthAccountConfig {
 	@Value("${ETH_ADDRESS_ACCOUNT_2}")
 	private String ethAddressAccount2;
 
+	@Value("${ETH_ADDRESS_ACCOUNT_3}")
+	private String ethAddressAccount3;
+
 	@Value("${ETH_PRIVATE_KEY_ACCOUNT_1}")
 	private String ethPrivateKeyAccount1;
+
+	@Value("${ETH_PRIVATE_KEY_ACCOUNT_2}")
+	private String ethPrivateKeyAccount2;
+
+	@Value("${ETH_PRIVATE_KEY_ACCOUNT_3}")
+	private String ethPrivateKeyAccount3;
+
+	@Value("${ETH_USD_PRICE_FEED}")
+	private String ethUSDPriceFeed;
 
 	/**
 	 * @return the url
@@ -27,8 +39,7 @@ public class EthAccountConfig {
 	}
 
 	/**
-	 * @param url
-	 *            the url to set
+	 * @param url the url to set
 	 */
 	public void setUrl(String url) {
 		this.url = url;
@@ -42,8 +53,7 @@ public class EthAccountConfig {
 	}
 
 	/**
-	 * @param ethAddressAccount1
-	 *            the ethAddressAccount1 to set
+	 * @param ethAddressAccount1 the ethAddressAccount1 to set
 	 */
 	public void setEthAddressAccount1(String ethAddressAccount1) {
 		this.ethAddressAccount1 = ethAddressAccount1;
@@ -57,8 +67,7 @@ public class EthAccountConfig {
 	}
 
 	/**
-	 * @param ethAddressAccount2
-	 *            the ethAddressAccount2 to set
+	 * @param ethAddressAccount2 the ethAddressAccount2 to set
 	 */
 	public void setEthAddressAccount2(String ethAddressAccount2) {
 		this.ethAddressAccount2 = ethAddressAccount2;
@@ -72,8 +81,7 @@ public class EthAccountConfig {
 	}
 
 	/**
-	 * @param ethPrivateKeyAccount1
-	 *            the ethPrivateKeyAccount1 to set
+	 * @param ethPrivateKeyAccount1 the ethPrivateKeyAccount1 to set
 	 */
 	public void setEthPrivateKeyAccount1(String ethPrivateKeyAccount1) {
 		this.ethPrivateKeyAccount1 = ethPrivateKeyAccount1;
@@ -87,13 +95,34 @@ public class EthAccountConfig {
 	}
 
 	/**
-	 * @param ethPrivateKeyAccount2
-	 *            the ethPrivateKeyAccount2 to set
+	 * @param ethPrivateKeyAccount2 the ethPrivateKeyAccount2 to set
 	 */
 	public void setEthPrivateKeyAccount2(String ethPrivateKeyAccount2) {
 		this.ethPrivateKeyAccount2 = ethPrivateKeyAccount2;
 	}
 
-	@Value("${ETH_PRIVATE_KEY_ACCOUNT_2}")
-	private String ethPrivateKeyAccount2;
+	public String getEthAddressAccount3() {
+		return ethAddressAccount3;
+	}
+
+	public void setEthAddressAccount3(String ethAddressAccount3) {
+		this.ethAddressAccount3 = ethAddressAccount3;
+	}
+
+	public String getEthPrivateKeyAccount3() {
+		return ethPrivateKeyAccount3;
+	}
+
+	public void setEthPrivateKeyAccount3(String ethPrivateKeyAccount3) {
+		this.ethPrivateKeyAccount3 = ethPrivateKeyAccount3;
+	}
+
+	public String getEthUSDPriceFeed() {
+		return ethUSDPriceFeed;
+	}
+
+	public void setEthUSDPriceFeed(String ethUSDPriceFeed) {
+		this.ethUSDPriceFeed = ethUSDPriceFeed;
+	}
+
 }

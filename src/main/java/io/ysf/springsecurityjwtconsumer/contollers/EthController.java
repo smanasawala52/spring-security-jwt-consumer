@@ -22,6 +22,8 @@ import org.web3j.tx.gas.StaticGasProvider;
 import org.web3j.utils.Convert;
 
 import io.ysf.springsecurityjwtconsumer.config.EthAccountConfig;
+import io.ysf.springsecurityjwtconsumer.contracts.FundMe;
+import io.ysf.springsecurityjwtconsumer.contracts.MockV3Aggregator;
 import io.ysf.springsecurityjwtconsumer.contracts.SimpleStorage;
 
 @RestController
@@ -29,6 +31,8 @@ public class EthController {
 
 	private static final BigInteger GAS_LIMIT = new BigInteger("6721975");
 	private static final BigInteger GAS_PRICE = new BigInteger("20000000000");
+	private static final BigInteger DECIMALS = new BigInteger("8");
+	private static final BigInteger INITIAL_ANSWER = new BigInteger("2000000000000000000000");
 	@Autowired
 	private EthAccountConfig ethAccountConfig;
 
@@ -43,19 +47,13 @@ public class EthController {
 		ModelAndView modelAndView = new ModelAndView("ethWallet");
 		String url = ethAccountConfig.getUrl();
 		modelAndView.addObject("url", url);
-		System.out.println("URL: " + ethAccountConfig.getUrl());
 		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
 		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
-
 		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
-
 		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
 		String ethPrivateKeyAccount2 = ethAccountConfig.getEthPrivateKeyAccount2();
-
 		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
-
 		Web3j client = Web3j.build(new HttpService(url));
-
 		try {
 			EthGetBalance balance = client.ethGetBalance(ethAddressAccount1, DefaultBlockParameter.valueOf("latest"))
 					.sendAsync().get(10, TimeUnit.SECONDS);
@@ -115,15 +113,9 @@ public class EthController {
 		System.out.println("URL: " + ethAccountConfig.getUrl());
 		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
 		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
-
 		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
 
-		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
-		String ethPrivateKeyAccount2 = ethAccountConfig.getEthPrivateKeyAccount2();
-
-		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
-
-		Web3j client = Web3j.build(new HttpService());
+		Web3j client = Web3j.build(new HttpService(url));
 		try {
 			Web3ClientVersion web3ClientVersion = client.web3ClientVersion().send();
 			System.out.println("web3ClientVersion: " + web3ClientVersion.getWeb3ClientVersion());
@@ -131,8 +123,7 @@ public class EthController {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-		Credentials credentials = Credentials
-				.create("0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d");
+		Credentials credentials = Credentials.create(ethPrivateKeyAccount1);
 
 		try {
 			SimpleStorage contract = SimpleStorage.deploy(client, credentials,
@@ -177,6 +168,178 @@ public class EthController {
 		return modelAndView;
 	}
 
+	@GetMapping("/ethFundMe")
+	public ModelAndView ethFundMe() {
+		ModelAndView modelAndView = new ModelAndView("ethFundMe");
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
+		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		String ethPrivateKeyAccount2 = ethAccountConfig.getEthPrivateKeyAccount2();
+		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
+		String ethAddressAccount3 = ethAccountConfig.getEthAddressAccount3();
+		String ethPrivateKeyAccount3 = ethAccountConfig.getEthPrivateKeyAccount3();
+		modelAndView.addObject("ethAddressAccount3", ethAddressAccount3);
+
+		Web3j client = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethPrivateKeyAccount1);
+		Credentials credentialsAccount2 = Credentials.create(ethPrivateKeyAccount2);
+		Credentials credentialsAccount3 = Credentials.create(ethPrivateKeyAccount3);
+
+		String priceFeedAddress = ethAccountConfig.getEthUSDPriceFeed();
+		if (priceFeedAddress == null || priceFeedAddress.isEmpty()) {
+			MockV3Aggregator mockAggregator = null;
+			try {
+				mockAggregator = MockV3Aggregator
+						.deploy(client, credentialsAccount1, new StaticGasProvider(GAS_PRICE, GAS_LIMIT), DECIMALS,
+								Convert.toWei(INITIAL_ANSWER.toString(), Convert.Unit.ETHER).toBigInteger())
+						.send();
+				priceFeedAddress = mockAggregator.getContractAddress();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		modelAndView.addObject("priceFeedAddress", priceFeedAddress);
+
+		try {
+			FundMe contract = FundMe
+					.deploy(client, credentialsAccount1, new StaticGasProvider(GAS_PRICE, GAS_LIMIT), priceFeedAddress)
+					.send();
+
+			// contract.get price
+			System.out.println("Price: " + contract.getPrice().send());
+			System.out.println("Price Hardcoded: " + contract.getPriceHardCode().send());
+
+			modelAndView.addObject("contractAddress", contract.getContractAddress());
+			modelAndView.addObject("owner", contract.owner().send());
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(contract.getContractAddress(), DefaultBlockParameter.valueOf("latest"))
+						.sendAsync().get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("contractBalance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			// When account 2 funds contract
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(ethAddressAccount2, DefaultBlockParameter.valueOf("latest")).sendAsync()
+						.get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("account2BeforeBalance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			FundMe contract2 = FundMe.load(contract.getContractAddress(), client, credentialsAccount2,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+			TransactionReceipt transactionReceipt1 = contract2
+					.fund(Convert.toWei("0.1", Convert.Unit.ETHER).toBigInteger()).send();
+			modelAndView.addObject("transactionReceipt1", transactionReceipt1);
+			modelAndView.addObject("transactionReceipt1From", transactionReceipt1.getFrom());
+			modelAndView.addObject("transactionReceipt1To", transactionReceipt1.getTo());
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(ethAddressAccount2, DefaultBlockParameter.valueOf("latest")).sendAsync()
+						.get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("account2Balance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(contract.getContractAddress(), DefaultBlockParameter.valueOf("latest"))
+						.sendAsync().get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("contractBalanceT1",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			// When account 3 funds contract
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(ethAddressAccount3, DefaultBlockParameter.valueOf("latest")).sendAsync()
+						.get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("account3BeforeBalance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			FundMe contract3 = FundMe.load(contract.getContractAddress(), client, credentialsAccount3,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+			TransactionReceipt transactionReceipt2 = contract3
+					.fund(Convert.toWei("0.1", Convert.Unit.ETHER).toBigInteger()).send();
+			modelAndView.addObject("transactionReceipt2", transactionReceipt2);
+			modelAndView.addObject("transactionReceipt2From", transactionReceipt2.getFrom());
+			modelAndView.addObject("transactionReceipt2To", transactionReceipt2.getFrom());
+
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(ethAddressAccount3, DefaultBlockParameter.valueOf("latest")).sendAsync()
+						.get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("account3Balance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(contract.getContractAddress(), DefaultBlockParameter.valueOf("latest"))
+						.sendAsync().get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("contractBalanceT2",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			// When all fund is transfer to owner - account 1
+
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(ethAddressAccount1, DefaultBlockParameter.valueOf("latest")).sendAsync()
+						.get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("account1BeforeBalance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			contract.withdraw().send();
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(ethAddressAccount1, DefaultBlockParameter.valueOf("latest")).sendAsync()
+						.get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("account1Balance",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			try {
+				EthGetBalance balance = client
+						.ethGetBalance(contract.getContractAddress(), DefaultBlockParameter.valueOf("latest"))
+						.sendAsync().get(10, TimeUnit.SECONDS);
+				modelAndView.addObject("contractBalanceT3",
+						Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			// contract.get price
+			System.out.println("Price: " + contract.getPrice().send());
+			System.out.println("Price Hardcoded: " + contract.getPriceHardCode().send());
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return modelAndView;
+	}
+
+	@GetMapping("/ethGetGasPrice")
 	public BigInteger requestCurrentGasPrice() throws IOException {
 		String url = ethAccountConfig.getUrl();
 		Web3j web3j = Web3j.build(new HttpService(url));

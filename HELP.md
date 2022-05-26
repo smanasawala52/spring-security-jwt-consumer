@@ -6,8 +6,12 @@ web3j generate solidity -a SimpleStorage.abi -o D:/ysfaligit/spring-security-jwt
 
 
 solcjs SimpleStorage.sol --bin --abi --optimize -o D:/ysfaligit/spring-security-jwt-consumer/src/main/resources
+
+cls
 web3j generate truffle --truffle-json=FundMe.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 web3j generate truffle --truffle-json=SimpleStorage.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
+web3j generate truffle --truffle-json=AggregatorV3Interface.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
+web3j generate truffle --truffle-json=MockV3Aggregator.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 
 
 web3j generate solidity -a SimpleStorage_sol_SimpleStorage.abi -b SimpleStorage_sol_SimpleStorage.bin -o D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ -p io.ysf.springsecurityjwtconsumer.contracts
@@ -17,3 +21,6 @@ https://consensys.net/quorum/developers/
 npx quorum-dev-quickstart
 
 https://trufflesuite.com/docs/drizzle/quickstart/
+
+
+npm install --save-dev @openzeppelin/truffle-upgrades

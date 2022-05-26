@@ -54,12 +54,12 @@ contract FunMe{
         funders= new address[](0);
     }
    
-    function getConversionUSDToWEI(uint256 inputAmtUSD) private pure returns (uint256){
+    function getConversionUSDToWEI(uint256 inputAmtUSD) public view returns (uint256){
         uint256 usdToEth = inputAmtUSD * (10 ** 9) * (10 ** 9) * (10 ** 8);
         usdToEth = usdToEth / getPriceHardCode();
         return usdToEth;
     }   
-    function getPriceHardCode() private pure returns (uint256){
+    function getPriceHardCode() public view returns (uint256){
          // returns price of (10 ** 8) ETH in USD 
         uint256 ans= 332451516808;
         return ans;
@@ -67,7 +67,7 @@ contract FunMe{
     function getThisBalance() public view returns (uint256){        
         return address(this).balance;
     }
-    function getPrice() private view returns (uint256){
+    function getPrice() public view returns (uint256){
         (,int256 answer,,,) = priceFeed.latestRoundData();
         return uint256(answer);
         //332451516808
