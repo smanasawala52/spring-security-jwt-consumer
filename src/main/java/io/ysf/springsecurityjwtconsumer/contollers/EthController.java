@@ -237,8 +237,10 @@ public class EthController {
 			}
 			FundMe contract2 = FundMe.load(contract.getContractAddress(), client, credentialsAccount2,
 					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
-			TransactionReceipt transactionReceipt1 = contract2
-					.fund(Convert.toWei("0.1", Convert.Unit.ETHER).toBigInteger()).send();
+			BigInteger entranceFee = new BigInteger("30000000000000");
+			entranceFee = Convert.toWei("0.1", Convert.Unit.ETHER).toBigInteger();
+
+			TransactionReceipt transactionReceipt1 = contract2.fund(entranceFee).send();
 			modelAndView.addObject("transactionReceipt1", transactionReceipt1);
 			modelAndView.addObject("transactionReceipt1From", transactionReceipt1.getFrom());
 			modelAndView.addObject("transactionReceipt1To", transactionReceipt1.getTo());
@@ -273,8 +275,7 @@ public class EthController {
 			}
 			FundMe contract3 = FundMe.load(contract.getContractAddress(), client, credentialsAccount3,
 					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
-			TransactionReceipt transactionReceipt2 = contract3
-					.fund(Convert.toWei("0.1", Convert.Unit.ETHER).toBigInteger()).send();
+			TransactionReceipt transactionReceipt2 = contract3.fund(entranceFee).send();
 			modelAndView.addObject("transactionReceipt2", transactionReceipt2);
 			modelAndView.addObject("transactionReceipt2From", transactionReceipt2.getFrom());
 			modelAndView.addObject("transactionReceipt2To", transactionReceipt2.getFrom());
