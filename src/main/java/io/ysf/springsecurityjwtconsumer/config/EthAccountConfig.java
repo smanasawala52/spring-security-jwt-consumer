@@ -1,11 +1,13 @@
 package io.ysf.springsecurityjwtconsumer.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
 @Configuration
 @PropertySource("classpath:envionment.properties")
+@ConfigurationProperties(prefix = "${NETWORK}")
 public class EthAccountConfig {
 	@Value("${URL}")
 	private String url;
