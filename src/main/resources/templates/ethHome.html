@@ -17,14 +17,12 @@
       <div class="container">
          <nav class="navbar navbar-expand-lg navbar-light bg-light" style="padding-bottom: 20px">
             <div class="container-fluid">
-               <a class="navbar-brand" href="/">Eth Wallet</a>
+               <a class="navbar-brand" href="/">Eth</a>
             </div>
          </nav>
          <section class="content">
-         	<a href="/ethConnectWallet" class="btn btn-primary">Connect Eth Wallet</a>
-	         <a href="/ethSimpleStorage" class="btn btn-primary">Eth Simple Storage</a>
-	         <a href="/ethFundMe" class="btn btn-primary">Eth Fund Me</a>
-	         
+         	<div th:insert="ethMenu :: menu"></div>	  
+         	<h1>Welcome to Eth Demo!</h1>       
          </section>
       </div>
    </body>

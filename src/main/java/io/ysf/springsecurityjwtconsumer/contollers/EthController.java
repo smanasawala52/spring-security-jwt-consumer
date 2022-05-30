@@ -18,33 +18,73 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.core.methods.response.Web3ClientVersion;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.tx.Transfer;
+import org.web3j.tx.gas.ContractGasProvider;
 import org.web3j.tx.gas.StaticGasProvider;
 import org.web3j.utils.Convert;
+import org.web3j.utils.Convert.Unit;
 
 import io.ysf.springsecurityjwtconsumer.config.EthAccountConfig;
+import io.ysf.springsecurityjwtconsumer.contracts.DappToken;
 import io.ysf.springsecurityjwtconsumer.contracts.FundMe;
+import io.ysf.springsecurityjwtconsumer.contracts.MockDAI;
+import io.ysf.springsecurityjwtconsumer.contracts.MockERC20;
 import io.ysf.springsecurityjwtconsumer.contracts.MockV3Aggregator;
+import io.ysf.springsecurityjwtconsumer.contracts.MockWeth;
 import io.ysf.springsecurityjwtconsumer.contracts.SimpleStorage;
+import io.ysf.springsecurityjwtconsumer.contracts.TokenFarm;
 
 @RestController
 public class EthController {
 
 	private static final BigInteger GAS_LIMIT = new BigInteger("6721975");
 	private static final BigInteger GAS_PRICE = new BigInteger("20000000000");
-	private static final BigInteger DECIMALS = new BigInteger("8");
-	private static final BigInteger INITIAL_ANSWER = new BigInteger("2000000000000000000000");
+	private static final BigInteger DECIMALS = new BigInteger("18");
+	private static final BigInteger INITIAL_ANSWER = Convert.toWei("2000", Unit.ETHER).toBigInteger();
+	// ) new BigInteger("280291526315455192404096188");
 	@Autowired
 	private EthAccountConfig ethAccountConfig;
 
 	@GetMapping("/eth")
 	public ModelAndView getEthHomePage() {
-		ModelAndView modelAndView = new ModelAndView("ethWalletHome");
+		ModelAndView modelAndView = new ModelAndView("ethHome");
 		return modelAndView;
 	}
 
 	@GetMapping("/ethConnectWallet")
 	public ModelAndView ethConnectWallet() {
 		ModelAndView modelAndView = new ModelAndView("ethWallet");
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
+		Web3j client = Web3j.build(new HttpService(url));
+		try {
+			EthGetBalance balance = client.ethGetBalance(ethAddressAccount1, DefaultBlockParameter.valueOf("latest"))
+					.sendAsync().get(10, TimeUnit.SECONDS);
+			System.out.println("account1BeforeBalance: " + balance.getBalance());
+			modelAndView.addObject("account1BeforeBalance",
+					Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		try {
+			EthGetBalance balance = client.ethGetBalance(ethAddressAccount2, DefaultBlockParameter.valueOf("latest"))
+					.sendAsync().get(10, TimeUnit.SECONDS);
+			System.out.println("account2BeforeBalance: " + balance.getBalance());
+			modelAndView.addObject("account2BeforeBalance",
+					Convert.fromWei(balance.getBalance().toString(), Convert.Unit.ETHER));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return modelAndView;
+	}
+
+	@GetMapping("/ethSimpleTransfer")
+	public ModelAndView ethSimpleTransfer() {
+		ModelAndView modelAndView = new ModelAndView("ethSimpleTransfer");
 		String url = ethAccountConfig.getUrl();
 		modelAndView.addObject("url", url);
 		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
@@ -188,15 +228,16 @@ public class EthController {
 		Credentials credentialsAccount2 = Credentials.create(ethPrivateKeyAccount2);
 		Credentials credentialsAccount3 = Credentials.create(ethPrivateKeyAccount3);
 
+		BigInteger entranceFee = new BigInteger("30000000000000");
+		entranceFee = Convert.toWei("0.001", Convert.Unit.ETHER).toBigInteger();
 		String priceFeedAddress = ethAccountConfig.getEthUSDPriceFeed();
 		if (priceFeedAddress == null || priceFeedAddress.isEmpty()) {
 			MockV3Aggregator mockAggregator = null;
 			try {
-				mockAggregator = MockV3Aggregator
-						.deploy(client, credentialsAccount1, new StaticGasProvider(GAS_PRICE, GAS_LIMIT), DECIMALS,
-								Convert.toWei(INITIAL_ANSWER.toString(), Convert.Unit.ETHER).toBigInteger())
-						.send();
+				mockAggregator = MockV3Aggregator.deploy(client, credentialsAccount1,
+						new StaticGasProvider(GAS_PRICE, GAS_LIMIT), DECIMALS, INITIAL_ANSWER).send();
 				priceFeedAddress = mockAggregator.getContractAddress();
+				entranceFee = Convert.toWei("1", Convert.Unit.ETHER).toBigInteger();
 			} catch (Exception e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
@@ -205,13 +246,17 @@ public class EthController {
 		modelAndView.addObject("priceFeedAddress", priceFeedAddress);
 
 		try {
-			FundMe contract = FundMe
-					.deploy(client, credentialsAccount1, new StaticGasProvider(GAS_PRICE, GAS_LIMIT), priceFeedAddress)
-					.send();
+			FundMe contract = FundMe.deploy(client, credentialsAccount1, new StaticGasProvider(GAS_PRICE, GAS_LIMIT),
+					priceFeedAddress, new BigInteger("0")).send();
 
 			// contract.get price
-			System.out.println("Price: " + contract.getPrice().send());
-			System.out.println("Price Hardcoded: " + contract.getPriceHardCode().send());
+			System.out.println("getEntranceFee: " + contract.getEntranceFee().send());
+			System.out.println("Price : " + contract.getPrice().send());
+			System.out.println("getConversionUSDToWEI: " + contract.getConversionUSDToWEI(new BigInteger("50")).send());
+			System.out.println("getPriceAll: " + contract.getPriceAll().send());
+
+			System.out.println(
+					"getConversionUSDToWEIView: " + contract.getConversionUSDToWEIView(new BigInteger("50")).send());
 
 			modelAndView.addObject("contractAddress", contract.getContractAddress());
 			modelAndView.addObject("owner", contract.owner().send());
@@ -237,8 +282,6 @@ public class EthController {
 			}
 			FundMe contract2 = FundMe.load(contract.getContractAddress(), client, credentialsAccount2,
 					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
-			BigInteger entranceFee = new BigInteger("30000000000000");
-			entranceFee = Convert.toWei("0.1", Convert.Unit.ETHER).toBigInteger();
 
 			TransactionReceipt transactionReceipt1 = contract2.fund(entranceFee).send();
 			modelAndView.addObject("transactionReceipt1", transactionReceipt1);
@@ -331,7 +374,7 @@ public class EthController {
 
 			// contract.get price
 			System.out.println("Price: " + contract.getPrice().send());
-			System.out.println("Price Hardcoded: " + contract.getPriceHardCode().send());
+			System.out.println("Price Hardcoded: " + contract.getPrice().send());
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -340,8 +383,198 @@ public class EthController {
 		return modelAndView;
 	}
 
+	@GetMapping("/ethDApp")
+	public ModelAndView ethDApp() {
+		ModelAndView modelAndView = new ModelAndView("ethDApp");
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
+		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		String ethPrivateKeyAccount2 = ethAccountConfig.getEthPrivateKeyAccount2();
+		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
+		String ethAddressAccount3 = ethAccountConfig.getEthAddressAccount3();
+		String ethPrivateKeyAccount3 = ethAccountConfig.getEthPrivateKeyAccount3();
+		modelAndView.addObject("ethAddressAccount3", ethAddressAccount3);
+
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethPrivateKeyAccount1);
+		Credentials credentialsAccount2 = Credentials.create(ethPrivateKeyAccount2);
+		Credentials credentialsAccount3 = Credentials.create(ethPrivateKeyAccount3);
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+
+		String ethUsdPriceFeedAddress = ethAccountConfig.getEthUSDPriceFeed();
+		if (ethUsdPriceFeedAddress == null || ethUsdPriceFeedAddress.isEmpty()) {
+			MockV3Aggregator mockAggregator = null;
+			try {
+				mockAggregator = MockV3Aggregator.deploy(web3j, credentialsAccount1, contractGasProvider, DECIMALS,
+						Convert.toWei(INITIAL_ANSWER.toString(), Convert.Unit.ETHER).toBigInteger()).send();
+				ethUsdPriceFeedAddress = mockAggregator.getContractAddress();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		modelAndView.addObject("priceFeedAddress", ethUsdPriceFeedAddress);
+
+		String daiUsdPriceFeedAddress = ethAccountConfig.getEthDaiUsdPriceFeed();
+		if (daiUsdPriceFeedAddress == null || daiUsdPriceFeedAddress.isEmpty()) {
+			MockV3Aggregator mockAggregator = null;
+			try {
+				mockAggregator = MockV3Aggregator.deploy(web3j, credentialsAccount1, contractGasProvider, DECIMALS,
+						Convert.toWei(INITIAL_ANSWER.toString(), Convert.Unit.ETHER).toBigInteger()).send();
+				daiUsdPriceFeedAddress = mockAggregator.getContractAddress();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		modelAndView.addObject("daiUsdPriceFeedAddress", daiUsdPriceFeedAddress);
+
+		// Deploy DApp and Token farm
+		try {
+			DappToken dAppTokenContract = DappToken.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+			TokenFarm tokenFarmContract = TokenFarm.deploy(web3j, credentialsAccount1,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT), dAppTokenContract.getContractAddress()).send();
+			modelAndView.addObject("tokenFarmContract", tokenFarmContract.getContractAddress());
+			modelAndView.addObject("tokenFarmContractName", tokenFarmContract.name());
+			BigInteger keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
+			BigInteger totalSupply = dAppTokenContract.totalSupply().send();
+			TransactionReceipt transactionReceipt1 = dAppTokenContract
+					.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+
+			modelAndView.addObject("transactionReceipt1", transactionReceipt1);
+			modelAndView.addObject("dAppTokenContract", dAppTokenContract.getContractAddress());
+			modelAndView.addObject("dAppTokenContractName", dAppTokenContract.name().send());
+			modelAndView.addObject("dAppTokenContractBalance",
+					Convert.fromWei(dAppTokenContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+
+			MockWeth mockWETHContract = null;
+			if (ethAccountConfig.getEthWethToken() == null || ethAccountConfig.getEthWethToken().isEmpty()) {
+				mockWETHContract = MockWeth.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+				totalSupply = mockWETHContract.totalSupply().send();
+				keptBalance = Convert.toWei(new BigInteger("0").toString(), Convert.Unit.ETHER).toBigInteger();
+//				TransactionReceipt transactionReceipt2 = dAppTokenContract
+//						.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+//				modelAndView.addObject("transactionReceipt2", transactionReceipt2);
+			} else {
+				mockWETHContract = MockWeth.load(ethAccountConfig.getEthWethToken(), web3j, credentialsAccount1,
+						contractGasProvider);
+			}
+			modelAndView.addObject("mockWETHContract", mockWETHContract.getContractAddress());
+			modelAndView.addObject("mockWETHContractName", mockWETHContract.name().send());
+			modelAndView.addObject("mockWETHContractBalance",
+					Convert.fromWei(mockWETHContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+			MockDAI mockDaiContract = null;
+			if (ethAccountConfig.getEthFauToken() == null || ethAccountConfig.getEthFauToken().isEmpty()) {
+				mockDaiContract = MockDAI.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+				keptBalance = Convert.toWei(new BigInteger("0").toString(), Convert.Unit.ETHER).toBigInteger();
+				totalSupply = mockDaiContract.totalSupply().send();
+//				TransactionReceipt transactionReceipt3 = dAppTokenContract
+//						.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+//				modelAndView.addObject("transactionReceipt3", transactionReceipt3);
+			} else {
+				mockDaiContract = MockDAI.load(ethAccountConfig.getEthFauToken(), web3j, credentialsAccount1,
+						contractGasProvider);
+			}
+			modelAndView.addObject("mockDaiContract", mockDaiContract.getContractAddress());
+			modelAndView.addObject("mockDaiContractName", mockDaiContract.name().send());
+			modelAndView.addObject("mockDaiContractBalance",
+					Convert.fromWei(mockDaiContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+
+			// DAPP
+			TransactionReceipt addAllowedTokensTransactionReceipt = tokenFarmContract
+					.addAllowedTokens(dAppTokenContract.getContractAddress()).send();
+			modelAndView.addObject("dAppAddAllowedTokensTransactionReceipt", addAllowedTokensTransactionReceipt);
+			TransactionReceipt priceFeedContractTransactionReceipt = tokenFarmContract
+					.setPriceFeedContract(dAppTokenContract.getContractAddress(), daiUsdPriceFeedAddress).send();
+			modelAndView.addObject("dAppPriceFeedContractTransactionReceipt", priceFeedContractTransactionReceipt);
+
+			// FAU
+			addAllowedTokensTransactionReceipt = tokenFarmContract
+					.addAllowedTokens(mockDaiContract.getContractAddress()).send();
+			modelAndView.addObject("fauAddAllowedTokensTransactionReceipt", addAllowedTokensTransactionReceipt);
+			priceFeedContractTransactionReceipt = tokenFarmContract
+					.setPriceFeedContract(mockDaiContract.getContractAddress(), daiUsdPriceFeedAddress).send();
+			modelAndView.addObject("fauPriceFeedContractTransactionReceipt", priceFeedContractTransactionReceipt);
+
+			// WETH
+			addAllowedTokensTransactionReceipt = tokenFarmContract
+					.addAllowedTokens(mockWETHContract.getContractAddress()).send();
+			modelAndView.addObject("wethAddAllowedTokensTransactionReceipt", addAllowedTokensTransactionReceipt);
+			priceFeedContractTransactionReceipt = tokenFarmContract
+					.setPriceFeedContract(mockWETHContract.getContractAddress(), ethUsdPriceFeedAddress).send();
+			modelAndView.addObject("wethPriceFeedContractTransactionReceipt", priceFeedContractTransactionReceipt);
+
+			// Stake token farm
+			// DAPP
+			MockERC20 mockERC20 = MockERC20.load(dAppTokenContract.getContractAddress(), web3j, credentialsAccount1,
+					contractGasProvider);
+			String spender = tokenFarmContract.getContractAddress();
+			BigInteger amount = new BigInteger("10");
+			TransactionReceipt transactionReceipt4 = mockERC20.approve(spender, amount).send();
+			modelAndView.addObject("transactionReceipt4", transactionReceipt4);
+
+			TransactionReceipt transactionReceipt5 = tokenFarmContract
+					.stakeTokens(amount, mockERC20.getContractAddress()).send();
+			modelAndView.addObject("transactionReceipt5", transactionReceipt5);
+
+			// FAU
+			MockERC20 mockERC20FAU = MockERC20.load(mockDaiContract.getContractAddress(), web3j, credentialsAccount1,
+					contractGasProvider);
+			TransactionReceipt transactionReceipt6 = mockERC20FAU.approve(spender, amount).send();
+			modelAndView.addObject("transactionReceipt6", transactionReceipt6);
+
+			TransactionReceipt transactionReceipt7 = tokenFarmContract
+					.stakeTokens(amount, mockERC20FAU.getContractAddress()).send();
+			modelAndView.addObject("transactionReceipt7", transactionReceipt7);
+
+			// print balance
+			printAllBalance(tokenFarmContract, ethAddressAccount1, dAppTokenContract, mockWETHContract, mockDaiContract,
+					modelAndView);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return modelAndView;
+
+	}
+
+	private void printAllBalance(TokenFarm tokenFarmContract, String ethAddressAccount1, DappToken dAppTokenContract,
+			MockWeth mockWETHContract, MockDAI mockDaiContract, ModelAndView modelAndView) {
+		try {
+			BigDecimal temp = Convert.fromWei(tokenFarmContract
+					.stakingBalance(dAppTokenContract.getContractAddress(), ethAddressAccount1).send().toString(),
+					Unit.ETHER);
+			System.out.println("DAppToken Contract Balance for account(" + ethAddressAccount1 + "): " + temp);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			BigDecimal temp = Convert.fromWei(tokenFarmContract
+					.stakingBalance(mockWETHContract.getContractAddress(), ethAddressAccount1).send().toString(),
+					Unit.ETHER);
+			System.out.println("Weth Contract Balance for account(" + ethAddressAccount1 + "): " + temp);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			BigDecimal temp = Convert.fromWei(tokenFarmContract
+					.stakingBalance(mockDaiContract.getContractAddress(), ethAddressAccount1).send().toString(),
+					Unit.ETHER);
+			System.out.println("Fau Contract Balance for account(" + ethAddressAccount1 + "): " + temp);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
 	@GetMapping("/ethGetGasPrice")
-	public BigInteger requestCurrentGasPrice() throws IOException {
+	public BigInteger ethGetGasPrice() throws IOException {
 		String url = ethAccountConfig.getUrl();
 		Web3j web3j = Web3j.build(new HttpService(url));
 		EthGasPrice ethGasPrice = web3j.ethGasPrice().send();

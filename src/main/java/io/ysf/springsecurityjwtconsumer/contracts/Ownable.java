@@ -37,7 +37,7 @@ import org.web3j.tx.gas.ContractGasProvider;
  */
 @SuppressWarnings("rawtypes")
 public class Ownable extends Contract {
-    public static final String BINARY = "";
+    public static final String BINARY = "0x";
 
     public static final String FUNC_OWNER = "owner";
 

@@ -1,14 +1,13 @@
 package io.ysf.springsecurityjwtconsumer.config;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
 @Configuration
 @PropertySource("classpath:envionment.properties")
-@ConfigurationProperties(prefix = "${NETWORK}")
 public class EthAccountConfig {
+
 	@Value("${URL}")
 	private String url;
 
@@ -32,6 +31,25 @@ public class EthAccountConfig {
 
 	@Value("${ETH_USD_PRICE_FEED}")
 	private String ethUSDPriceFeed;
+
+	@Value("${ETH_VRF_COORDINATOR}")
+	private String ethVrfCoordinator;
+	@Value("${ETH_LINK_TOKEN}")
+	private String ethLinkToken;
+	@Value("${ETH_KEY_HASH}")
+	private String ethKeyHash;
+	@Value("${ETH_FEE}")
+	private String ethFee;
+	@Value("${ETH_ORACLE}")
+	private String ethOracle;
+	@Value("${ETH_JOB_ID}")
+	private String ethJobId;
+	@Value("${ETH_WETH_TOKEN}")
+	private String ethWethToken;
+	@Value("${ETH_FAU_TOKEN}")
+	private String ethFauToken;
+	@Value("${ETH_DAI_USD_PRICE_FEED}")
+	private String ethDaiUsdPriceFeed;
 
 	/**
 	 * @return the url
@@ -125,6 +143,78 @@ public class EthAccountConfig {
 
 	public void setEthUSDPriceFeed(String ethUSDPriceFeed) {
 		this.ethUSDPriceFeed = ethUSDPriceFeed;
+	}
+
+	public String getEthVrfCoordinator() {
+		return ethVrfCoordinator;
+	}
+
+	public void setEthVrfCoordinator(String ethVrfCoordinator) {
+		this.ethVrfCoordinator = ethVrfCoordinator;
+	}
+
+	public String getEthLinkToken() {
+		return ethLinkToken;
+	}
+
+	public void setEthLinkToken(String ethLinkToken) {
+		this.ethLinkToken = ethLinkToken;
+	}
+
+	public String getEthKeyHash() {
+		return ethKeyHash;
+	}
+
+	public void setEthKeyHash(String ethKeyHash) {
+		this.ethKeyHash = ethKeyHash;
+	}
+
+	public String getEthFee() {
+		return ethFee;
+	}
+
+	public void setEthFee(String ethFee) {
+		this.ethFee = ethFee;
+	}
+
+	public String getEthOracle() {
+		return ethOracle;
+	}
+
+	public void setEthOracle(String ethOracle) {
+		this.ethOracle = ethOracle;
+	}
+
+	public String getEthJobId() {
+		return ethJobId;
+	}
+
+	public void setEthJobId(String ethJobId) {
+		this.ethJobId = ethJobId;
+	}
+
+	public String getEthWethToken() {
+		return ethWethToken;
+	}
+
+	public void setEthWethToken(String ethWethToken) {
+		this.ethWethToken = ethWethToken;
+	}
+
+	public String getEthFauToken() {
+		return ethFauToken;
+	}
+
+	public void setEthFauToken(String ethFauToken) {
+		this.ethFauToken = ethFauToken;
+	}
+
+	public String getEthDaiUsdPriceFeed() {
+		return ethDaiUsdPriceFeed;
+	}
+
+	public void setEthDaiUsdPriceFeed(String ethDaiUsdPriceFeed) {
+		this.ethDaiUsdPriceFeed = ethDaiUsdPriceFeed;
 	}
 
 }

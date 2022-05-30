@@ -12,6 +12,8 @@ web3j generate truffle --truffle-json=FundMe.json --outputDir=D:/ysfaligit/sprin
 web3j generate truffle --truffle-json=SimpleStorage.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 web3j generate truffle --truffle-json=AggregatorV3Interface.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 web3j generate truffle --truffle-json=MockV3Aggregator.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
+web3j generate truffle --truffle-json=MockDAI.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
+web3j generate truffle --truffle-json=MockWeth.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 
 
 web3j generate solidity -a SimpleStorage_sol_SimpleStorage.abi -b SimpleStorage_sol_SimpleStorage.bin -o D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ -p io.ysf.springsecurityjwtconsumer.contracts

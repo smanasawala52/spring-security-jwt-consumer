@@ -20,7 +20,7 @@ import org.web3j.tx.gas.ContractGasProvider;
  */
 @SuppressWarnings("rawtypes")
 public class Context extends Contract {
-    public static final String BINARY = "";
+    public static final String BINARY = "0x";
 
     protected static final HashMap<String, String> _addresses;
 
