@@ -1,0 +1,166 @@
+
+		ModelAndView modelAndView = new ModelAndView("ethDApp");
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
+		modelAndView.addObject("ethAddressAccount1", ethAddressAccount1);
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		String ethPrivateKeyAccount2 = ethAccountConfig.getEthPrivateKeyAccount2();
+		modelAndView.addObject("ethAddressAccount2", ethAddressAccount2);
+		String ethAddressAccount3 = ethAccountConfig.getEthAddressAccount3();
+		String ethPrivateKeyAccount3 = ethAccountConfig.getEthPrivateKeyAccount3();
+		modelAndView.addObject("ethAddressAccount3", ethAddressAccount3);
+
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethPrivateKeyAccount1);
+		Credentials credentialsAccount2 = Credentials.create(ethPrivateKeyAccount2);
+		Credentials credentialsAccount3 = Credentials.create(ethPrivateKeyAccount3);
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+
+		String ethUsdPriceFeedAddress = ethAccountConfig.getEthUSDPriceFeed();
+		if (ethUsdPriceFeedAddress == null || ethUsdPriceFeedAddress.isEmpty()) {
+			MockV3Aggregator mockAggregator = null;
+			try {
+				mockAggregator = MockV3Aggregator.deploy(web3j, credentialsAccount1, contractGasProvider, DECIMALS,
+						Convert.toWei(INITIAL_ANSWER.toString(), Convert.Unit.ETHER).toBigInteger()).send();
+				ethUsdPriceFeedAddress = mockAggregator.getContractAddress();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		modelAndView.addObject("priceFeedAddress", ethUsdPriceFeedAddress);
+
+		String daiUsdPriceFeedAddress = ethAccountConfig.getEthDaiUsdPriceFeed();
+		if (daiUsdPriceFeedAddress == null || daiUsdPriceFeedAddress.isEmpty()) {
+			MockV3Aggregator mockAggregator = null;
+			try {
+				mockAggregator = MockV3Aggregator.deploy(web3j, credentialsAccount1, contractGasProvider, DECIMALS,
+						Convert.toWei(INITIAL_ANSWER.toString(), Convert.Unit.ETHER).toBigInteger()).send();
+				daiUsdPriceFeedAddress = mockAggregator.getContractAddress();
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		modelAndView.addObject("daiUsdPriceFeedAddress", daiUsdPriceFeedAddress);
+
+		// Deploy DApp and Token farm
+		try {
+			DappToken dAppTokenContract = DappToken.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+			TokenFarm tokenFarmContract = TokenFarm.deploy(web3j, credentialsAccount1,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT), dAppTokenContract.getContractAddress()).send();
+			modelAndView.addObject("tokenFarmContract", tokenFarmContract.getContractAddress());
+			modelAndView.addObject("tokenFarmContractName", tokenFarmContract.name());
+			BigInteger keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
+			BigInteger totalSupply = dAppTokenContract.totalSupply().send();
+			TransactionReceipt transactionReceipt1 = dAppTokenContract
+					.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+
+			modelAndView.addObject("transactionReceipt1", transactionReceipt1);
+			modelAndView.addObject("dAppTokenContract", dAppTokenContract.getContractAddress());
+			modelAndView.addObject("dAppTokenContractName", dAppTokenContract.name().send());
+			modelAndView.addObject("dAppTokenContractBalance",
+					Convert.fromWei(dAppTokenContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+
+			MockWeth mockWETHContract = null;
+			if (ethAccountConfig.getEthWethToken() == null || ethAccountConfig.getEthWethToken().isEmpty()) {
+				mockWETHContract = MockWeth.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+				totalSupply = mockWETHContract.totalSupply().send();
+				keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
+//				TransactionReceipt transactionReceipt2 = dAppTokenContract
+//						.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+//				modelAndView.addObject("transactionReceipt2", transactionReceipt2);
+			} else {
+				mockWETHContract = MockWeth.load(ethAccountConfig.getEthWethToken(), web3j, credentialsAccount1,
+						contractGasProvider);
+			}
+			modelAndView.addObject("mockWETHContract", mockWETHContract.getContractAddress());
+			modelAndView.addObject("mockWETHContractName", mockWETHContract.name().send());
+			modelAndView.addObject("mockWETHContractBalance",
+					Convert.fromWei(mockWETHContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+			MockDAI mockDaiContract = null;
+			if (ethAccountConfig.getEthFauToken() == null || ethAccountConfig.getEthFauToken().isEmpty()) {
+				mockDaiContract = MockDAI.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+				keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
+				totalSupply = mockDaiContract.totalSupply().send();
+//				TransactionReceipt transactionReceipt3 = dAppTokenContract
+//						.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+//				modelAndView.addObject("transactionReceipt3", transactionReceipt3);
+			} else {
+				mockDaiContract = MockDAI.load(ethAccountConfig.getEthFauToken(), web3j, credentialsAccount1,
+						contractGasProvider);
+			}
+			modelAndView.addObject("mockDaiContract", mockDaiContract.getContractAddress());
+			modelAndView.addObject("mockDaiContractName", mockDaiContract.name().send());
+			modelAndView.addObject("mockDaiContractBalance",
+					Convert.fromWei(mockDaiContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+
+			// DAPP
+			TransactionReceipt addAllowedTokensTransactionReceipt = tokenFarmContract
+					.addAllowedTokens(dAppTokenContract.getContractAddress()).send();
+			modelAndView.addObject("dAppAddAllowedTokensTransactionReceipt", addAllowedTokensTransactionReceipt);
+			TransactionReceipt priceFeedContractTransactionReceipt = tokenFarmContract
+					.setPriceFeedContract(dAppTokenContract.getContractAddress(), daiUsdPriceFeedAddress).send();
+			modelAndView.addObject("dAppPriceFeedContractTransactionReceipt", priceFeedContractTransactionReceipt);
+
+			// FAU
+			addAllowedTokensTransactionReceipt = tokenFarmContract
+					.addAllowedTokens(mockDaiContract.getContractAddress()).send();
+			modelAndView.addObject("fauAddAllowedTokensTransactionReceipt", addAllowedTokensTransactionReceipt);
+			priceFeedContractTransactionReceipt = tokenFarmContract
+					.setPriceFeedContract(mockDaiContract.getContractAddress(), daiUsdPriceFeedAddress).send();
+			modelAndView.addObject("fauPriceFeedContractTransactionReceipt", priceFeedContractTransactionReceipt);
+
+			// WETH
+			addAllowedTokensTransactionReceipt = tokenFarmContract
+					.addAllowedTokens(mockWETHContract.getContractAddress()).send();
+			modelAndView.addObject("wethAddAllowedTokensTransactionReceipt", addAllowedTokensTransactionReceipt);
+			priceFeedContractTransactionReceipt = tokenFarmContract
+					.setPriceFeedContract(mockWETHContract.getContractAddress(), ethUsdPriceFeedAddress).send();
+			modelAndView.addObject("wethPriceFeedContractTransactionReceipt", priceFeedContractTransactionReceipt);
+
+			// Stake token farm
+			// DAPP
+			MockERC20 mockERC20 = MockERC20.load(dAppTokenContract.getContractAddress(), web3j, credentialsAccount1,
+					contractGasProvider);
+			String spender = tokenFarmContract.getContractAddress();
+			BigInteger amount = Convert.toWei("10", Convert.Unit.ETHER).toBigInteger();
+			TransactionReceipt transactionReceipt4 = mockERC20.approve(spender, amount).send();
+			modelAndView.addObject("transactionReceipt4", transactionReceipt4);
+
+			TransactionReceipt transactionReceipt5 = tokenFarmContract
+					.stakeTokens(amount, mockERC20.getContractAddress()).send();
+			modelAndView.addObject("transactionReceipt5", transactionReceipt5);
+
+			// FAU
+			MockERC20 mockERC20FAU = MockERC20.load(mockDaiContract.getContractAddress(), web3j, credentialsAccount1,
+					contractGasProvider);
+			TransactionReceipt transactionReceipt6 = mockERC20FAU.approve(spender, amount).send();
+			modelAndView.addObject("transactionReceipt6", transactionReceipt6);
+
+			TransactionReceipt transactionReceipt7 = tokenFarmContract
+					.stakeTokens(amount, mockERC20FAU.getContractAddress()).send();
+			modelAndView.addObject("transactionReceipt7", transactionReceipt7);
+
+			// WETH
+			MockERC20 mockERC20WETH = MockERC20.load(mockWETHContract.getContractAddress(), web3j, credentialsAccount1,
+					contractGasProvider);
+			TransactionReceipt transactionReceipt8 = mockERC20WETH.approve(spender, amount).send();
+			modelAndView.addObject("transactionReceipt8", transactionReceipt8);
+
+			TransactionReceipt transactionReceipt9 = tokenFarmContract
+					.stakeTokens(amount, mockERC20WETH.getContractAddress()).send();
+			modelAndView.addObject("transactionReceipt9", transactionReceipt9);
+
+			// print balance
+			printAllBalance(tokenFarmContract, ethAddressAccount1, dAppTokenContract, mockWETHContract, mockDaiContract,
+					modelAndView);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return modelAndView;
+
+	
