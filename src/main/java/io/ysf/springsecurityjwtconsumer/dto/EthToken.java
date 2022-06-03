@@ -31,4 +31,10 @@ public class EthToken {
 		this.ethTokenBalance = ethTokenBalance;
 	}
 
+	@Override
+	public String toString() {
+		return "EthToken [ethTokenAddress=" + ethTokenAddress + ", ethAccountBalance=" + ethAccountBalance
+				+ ", ethTokenBalance=" + ethTokenBalance + "]";
+	}
+
 }

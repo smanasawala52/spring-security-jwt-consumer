@@ -32,4 +32,10 @@ public class EthAccount {
 		this.ethToken = ethToken;
 	}
 
+	@Override
+	public String toString() {
+		return "EthAccount [ethAccount=" + ethAccount + ", ethAccountPrivateKey=" + ethAccountPrivateKey + ", ethToken="
+				+ ethToken + "]";
+	}
+
 }

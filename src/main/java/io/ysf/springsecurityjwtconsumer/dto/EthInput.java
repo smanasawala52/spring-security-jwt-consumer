@@ -8,6 +8,7 @@ public class EthInput {
 	private String ethAccount;
 	private String ethAccountPrivateKey;
 	private String ethTokenAddress;
+	private String ethTokenFarmAddress;
 	private BigInteger ethAmount;
 
 	private List<String> ethAvailableTokenAddress = new ArrayList<>();
@@ -50,6 +51,21 @@ public class EthInput {
 
 	public void setEthAvailableTokenAddress(List<String> ethAvailableTokenAddress) {
 		this.ethAvailableTokenAddress = ethAvailableTokenAddress;
+	}
+
+	public String getEthTokenFarmAddress() {
+		return ethTokenFarmAddress;
+	}
+
+	public void setEthTokenFarmAddress(String ethTokenFarmAddress) {
+		this.ethTokenFarmAddress = ethTokenFarmAddress;
+	}
+
+	@Override
+	public String toString() {
+		return "EthInput [ethAccount=" + ethAccount + ", ethAccountPrivateKey=" + ethAccountPrivateKey
+				+ ", ethTokenAddress=" + ethTokenAddress + ", ethTokenFarmAddress=" + ethTokenFarmAddress
+				+ ", ethAmount=" + ethAmount + ", ethAvailableTokenAddress=" + ethAvailableTokenAddress + "]";
 	}
 
 }

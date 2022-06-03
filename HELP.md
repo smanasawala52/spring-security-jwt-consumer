@@ -6,6 +6,8 @@ web3j generate solidity -a SimpleStorage.abi -o D:/ysfaligit/spring-security-jwt
 
 
 solcjs SimpleStorage.sol --bin --abi --optimize -o D:/ysfaligit/spring-security-jwt-consumer/src/main/resources
+solcjs D:/Test/crypto_demos/brownie_simple_storage/openzeppelin-contracts/contracts/mocks/ERC20Mock.sol --bin --abi --optimize -o D:/ysfaligit/spring-security-jwt-consumer/src/main/resources
+solcjs ERC20Mock.sol --bin --abi --optimize -o D:/ysfaligit/spring-security-jwt-consumer/src/main/resources
 
 cls
 web3j generate truffle --truffle-json=FundMe.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
@@ -14,6 +16,9 @@ web3j generate truffle --truffle-json=AggregatorV3Interface.json --outputDir=D:/
 web3j generate truffle --truffle-json=MockV3Aggregator.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 web3j generate truffle --truffle-json=MockDAI.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 web3j generate truffle --truffle-json=MockWeth.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
+
+web3j generate truffle --truffle-json=D:/Test/crypto_demos/defi-stake-yield-brownie/build/contracts/TokenFarm.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
+web3j generate truffle --truffle-json=D:/Test/crypto_demos/defi-stake-yield-brownie/build/contracts/TokenFarm.json --outputDir=D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ --package=io.ysf.springsecurityjwtconsumer.contracts
 
 
 web3j generate solidity -a SimpleStorage_sol_SimpleStorage.abi -b SimpleStorage_sol_SimpleStorage.bin -o D:/ysfaligit/spring-security-jwt-consumer/src/main/java/ -p io.ysf.springsecurityjwtconsumer.contracts

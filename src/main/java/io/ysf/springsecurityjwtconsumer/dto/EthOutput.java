@@ -19,4 +19,10 @@ public class EthOutput {
 	public void setEthTokenFarm(EthTokenFarm ethTokenFarm) {
 		this.ethTokenFarm = ethTokenFarm;
 	}
+
+	@Override
+	public String toString() {
+		return "EthOutput [ethAccount=" + ethAccount + ", ethTokenFarm=" + ethTokenFarm + "]";
+	}
+
 }

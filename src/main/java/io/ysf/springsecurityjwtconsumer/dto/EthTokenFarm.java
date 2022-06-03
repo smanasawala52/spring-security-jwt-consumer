@@ -40,4 +40,12 @@ public class EthTokenFarm {
 	public void setOwnerAddress(String ownerAddress) {
 		this.ownerAddress = ownerAddress;
 	}
+
+	@Override
+	public String toString() {
+		return "EthTokenFarm [contractAddress=" + contractAddress + ", ownerAddress=" + ownerAddress
+				+ ", ethAvailableTokenAddress=" + ethAvailableTokenAddress + ", ethAvailableAccounts="
+				+ ethAvailableAccounts + "]";
+	}
+
 }

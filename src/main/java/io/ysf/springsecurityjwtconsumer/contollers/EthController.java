@@ -9,6 +9,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.web3j.crypto.Credentials;
@@ -29,10 +31,14 @@ import io.ysf.springsecurityjwtconsumer.config.EthAccountConfig;
 import io.ysf.springsecurityjwtconsumer.contracts.DappToken;
 import io.ysf.springsecurityjwtconsumer.contracts.FundMe;
 import io.ysf.springsecurityjwtconsumer.contracts.MockDAI;
+import io.ysf.springsecurityjwtconsumer.contracts.MockERC20;
 import io.ysf.springsecurityjwtconsumer.contracts.MockV3Aggregator;
 import io.ysf.springsecurityjwtconsumer.contracts.MockWeth;
 import io.ysf.springsecurityjwtconsumer.contracts.SimpleStorage;
 import io.ysf.springsecurityjwtconsumer.contracts.TokenFarm;
+import io.ysf.springsecurityjwtconsumer.dto.EthAccount;
+import io.ysf.springsecurityjwtconsumer.dto.EthInput;
+import io.ysf.springsecurityjwtconsumer.dto.EthToken;
 import io.ysf.springsecurityjwtconsumer.dto.EthTokenFarm;
 
 @RestController
@@ -525,22 +531,260 @@ public class EthController {
 			ethAvailableTokenAddress.add(dAppTokenContract.getContractAddress());
 			ethAvailableTokenAddress.add(mockWETHContract.getContractAddress());
 			ethAvailableTokenAddress.add(mockDaiContract.getContractAddress());
+			System.out.println("--------------------------------------------------------");
+			System.out.println("Token Address:");
+			System.out.println("DAPP Token Address: " + dAppTokenContract.getContractAddress());
+			System.out.println("FAU  Token Address: " + mockDaiContract.getContractAddress());
+			System.out.println("WETH Token Address: " + mockWETHContract.getContractAddress());
+			System.out.println("--------------------------------------------------------");
 
-			EthTokenFarm ethTokenFarm = new EthTokenFarm();
-			ethTokenFarm.setContractAddress(tokenFarmContract.getContractAddress());
-			ethTokenFarm.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			// tokenFarmContract.
-			ethTokenFarm.setOwnerAddress(tokenFarmContract.owner().send());
+			// account 1 token 1
+			BigInteger amount = Convert.toWei("10", Convert.Unit.ETHER).toBigInteger();
+			EthInput ethInput = new EthInput();
+			ethInput.setEthAccount(ethAddressAccount1);
+			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+			ethInput.setEthAmount(amount);
+			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+			ethInput.setEthTokenAddress(dAppTokenContract.getContractAddress());
+			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+			ethDAppStake(ethInput);
+			System.out.println("--------------------------------------------------------");
+
+			// account 1 token 2
+			amount = Convert.toWei("20", Convert.Unit.ETHER).toBigInteger();
+			ethInput = new EthInput();
+			ethInput.setEthAccount(ethAddressAccount1);
+			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+			ethInput.setEthAmount(amount);
+			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+			ethInput.setEthTokenAddress(mockDaiContract.getContractAddress());
+			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+			ethDAppStake(ethInput);
+			System.out.println("--------------------------------------------------------");
+
+			// account 3 token 2
+			amount = Convert.toWei("30", Convert.Unit.ETHER).toBigInteger();
+			ethInput = new EthInput();
+			ethInput.setEthAccount(ethAddressAccount1);
+			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+			ethInput.setEthAmount(amount);
+			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+			ethInput.setEthTokenAddress(mockWETHContract.getContractAddress());
+			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+			ethDAppStake(ethInput);
+			System.out.println("--------------------------------------------------------");
+			// account 2 token 1
+			amount = Convert.toWei("40", Convert.Unit.ETHER).toBigInteger();
+			ethInput = new EthInput();
+			ethInput.setEthAccount(ethAddressAccount2);
+			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
+			ethInput.setEthAmount(amount);
+			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+			ethInput.setEthTokenAddress(dAppTokenContract.getContractAddress());
+			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+			ethDAppStake(ethInput);
+			System.out.println("--------------------------------------------------------");
+
+			// account 1 token 2
+			amount = Convert.toWei("50", Convert.Unit.ETHER).toBigInteger();
+			ethInput = new EthInput();
+			ethInput.setEthAccount(ethAddressAccount2);
+			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
+			ethInput.setEthAmount(amount);
+			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+			ethInput.setEthTokenAddress(mockDaiContract.getContractAddress());
+			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+			ethDAppStake(ethInput);
+			System.out.println("--------------------------------------------------------");
+
+			// account 3 token 2
+			amount = Convert.toWei("60", Convert.Unit.ETHER).toBigInteger();
+			ethInput = new EthInput();
+			ethInput.setEthAccount(ethAddressAccount2);
+			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
+			ethInput.setEthAmount(amount);
+			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+			ethInput.setEthTokenAddress(mockWETHContract.getContractAddress());
+			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+			ethDAppStake(ethInput);
+			System.out.println("--------------------------------------------------------");
+			EthTokenFarm ethTokenFarm = populateTokenFarm(tokenFarmContract.getContractAddress(),
+					ethPrivateKeyAccount1);
+			System.out.println("--------------------------------------------------------");
 			modelAndView.addObject("ethTokenFarm", ethTokenFarm);
+			// print balance
+			printAllBalance(tokenFarmContract, ethAddressAccount1, dAppTokenContract, mockWETHContract, mockDaiContract,
+					modelAndView);
+			// print balance
+			printAllBalance(tokenFarmContract, ethAddressAccount2, dAppTokenContract, mockWETHContract, mockDaiContract,
+					modelAndView);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return modelAndView;
 	}
 
-	@GetMapping("/ethDApp/stake")
-	public ModelAndView ethDAppStake() {
+	private EthTokenFarm populateTokenFarm(String contractAddress, String ownerCreds) {
+		// load token farm contract
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ownerCreds);
+		TokenFarm tokenFarmContract = TokenFarm.load(contractAddress, web3j, credentialsAccount1,
+				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+		EthTokenFarm ethTokenFarm = new EthTokenFarm();
+		ethTokenFarm.setContractAddress(tokenFarmContract.getContractAddress());
+
+		// populate available tokens
+		List<String> lst = new ArrayList<>();
+		try {
+			for (int i = 0; i < 3; i++) {
+				lst.add(tokenFarmContract.allowedTokens(new BigInteger(String.valueOf(i))).send());
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		ethTokenFarm.setEthAvailableTokenAddress(lst);
+		//
+
+		// populate available accounts
+		List<EthAccount> ethAvailableAccounts = new ArrayList<>();
+		try {
+			for (int i = 0; i < 2; i++) {
+				EthAccount ethAvailableAccount = new EthAccount();
+				ethAvailableAccount.setEthAccount(tokenFarmContract.stakers(new BigInteger(String.valueOf(i))).send());
+				List<EthToken> ethTokens = new ArrayList<>();
+				for (String ethAvailableTokenAddress : ethTokenFarm.getEthAvailableTokenAddress()) {
+					EthToken ethToken = new EthToken();
+					ethToken.setEthTokenAddress(ethAvailableTokenAddress);
+					try {
+						BigDecimal temp = Convert.fromWei(tokenFarmContract
+								.stakingBalance(ethAvailableTokenAddress, ethAvailableAccount.getEthAccount()).send()
+								.toString(), Unit.ETHER);
+						ethToken.setEthTokenBalance(temp.toBigInteger());
+
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					try {
+
+						if (credentialsAccount1.getAddress().equalsIgnoreCase(ethAvailableAccount.getEthAccount())) {
+							ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+							MockERC20 ethAvailableToken = MockERC20.load(ethAvailableTokenAddress, web3j,
+									credentialsAccount1, contractGasProvider);
+							BigDecimal temp = Convert.fromWei(
+									ethAvailableToken.balanceOf(ethAvailableAccount.getEthAccount()).send().toString(),
+									Unit.ETHER);
+							ethToken.setEthAccountBalance(temp.toBigInteger());
+						}
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+					ethTokens.add(ethToken);
+				}
+				ethAvailableAccount.setEthToken(ethTokens);
+				ethAvailableAccounts.add(ethAvailableAccount);
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		ethTokenFarm.setEthAvailableAccounts(ethAvailableAccounts);
+		//
+
+		try {
+			ethTokenFarm.setOwnerAddress(tokenFarmContract.owner().send());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.out.println("ethTokenFarm: " + ethTokenFarm);
+		return ethTokenFarm;
+	}
+
+	@PostMapping("/ethDApp/mint")
+	public ModelAndView ethDAppMint(@RequestBody EthInput ethInput) {
+		System.out.println(ethInput);
 		ModelAndView modelAndView = new ModelAndView("ethDApp");
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethInput.getEthAccountPrivateKey());
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+
+		TokenFarm tokenFarmContract = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
+				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+		BigInteger amount = ethInput.getEthAmount();
+		// FAU
+		MockERC20 mockERC20FAU = MockERC20.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
+				contractGasProvider);
+//		mockERC20FAU.allowance(owner, spender);
+		TransactionReceipt transactionReceipt6 = null;
+		MockWeth mockWETHContract = null;
+		if (ethAccountConfig.getEthWethToken() == null || ethAccountConfig.getEthWethToken().isEmpty()) {
+			try {
+				mockWETHContract = MockWeth.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+//			TransactionReceipt transactionReceipt2 = dAppTokenContract
+//					.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
+//			modelAndView.addObject("transactionReceipt2", transactionReceipt2);
+		} else {
+			mockWETHContract = MockWeth.load(ethAccountConfig.getEthWethToken(), web3j, credentialsAccount1,
+					contractGasProvider);
+		}
+		modelAndView.addObject(
+				"transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress() + "_mint",
+				transactionReceipt6);
+		System.out.println("transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress()
+				+ "_mint: " + transactionReceipt6);
+
+		return modelAndView;
+	}
+
+	@PostMapping("/ethDApp/stake")
+	public ModelAndView ethDAppStake(@RequestBody EthInput ethInput) {
+		System.out.println(ethInput);
+		ModelAndView modelAndView = new ModelAndView("ethDApp");
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethInput.getEthAccountPrivateKey());
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+
+		TokenFarm tokenFarmContract = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
+				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+		BigInteger amount = ethInput.getEthAmount();
+		// FAU
+		MockERC20 mockERC20FAU = MockERC20.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
+				contractGasProvider);
+		TransactionReceipt transactionReceipt6 = null;
+		try {
+			transactionReceipt6 = mockERC20FAU.approve(tokenFarmContract.getContractAddress(), amount).send();
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		modelAndView.addObject(
+				"transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress() + "_approve",
+				transactionReceipt6);
+
+		TransactionReceipt transactionReceipt7 = null;
+		try {
+			transactionReceipt7 = tokenFarmContract.stakeTokens(amount, mockERC20FAU.getContractAddress()).send();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		modelAndView.addObject(
+				"transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress(),
+				transactionReceipt7);
+
+		System.out.println("transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress()
+				+ ": " + transactionReceipt6);
 		return modelAndView;
 	}
 
@@ -552,6 +796,7 @@ public class EthController {
 
 	public void printAllBalance(TokenFarm tokenFarmContract, String ethAddressAccount1, DappToken dAppTokenContract,
 			MockWeth mockWETHContract, MockDAI mockDaiContract, ModelAndView modelAndView) {
+		System.out.println("--------------------------------------------------------");
 		try {
 			BigDecimal temp = Convert.fromWei(tokenFarmContract
 					.stakingBalance(dAppTokenContract.getContractAddress(), ethAddressAccount1).send().toString(),
@@ -588,6 +833,7 @@ public class EthController {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		System.out.println("--------------------------------------------------------");
 	}
 
 	@GetMapping("/ethGetGasPrice")
