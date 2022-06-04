@@ -4,13 +4,20 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.web3j.crypto.Credentials;
@@ -21,6 +28,7 @@ import org.web3j.protocol.core.methods.response.EthGetBalance;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.core.methods.response.Web3ClientVersion;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.tuples.generated.Tuple2;
 import org.web3j.tx.Transfer;
 import org.web3j.tx.gas.ContractGasProvider;
 import org.web3j.tx.gas.StaticGasProvider;
@@ -48,9 +56,22 @@ public class EthController {
 	private static final BigInteger GAS_PRICE = new BigInteger("20000000000");
 	private static final BigInteger DECIMALS = new BigInteger("18");
 	private static final BigInteger INITIAL_ANSWER = Convert.toWei("2000", Unit.ETHER).toBigInteger();
-	// ) new BigInteger("280291526315455192404096188");
+	private static String ethTokenFarmAddress;
+	// demo purpose add private keys to map with account so that easier to switch in
+	// UI
+	private static Map<String, String> ethAddressPrivateKeysMap = new HashMap<>();
 	@Autowired
 	private EthAccountConfig ethAccountConfig;
+
+	@PostConstruct
+	private void ethDappInitPvtMap() {
+		ethAddressPrivateKeysMap.put(ethAccountConfig.getEthAddressAccount1(),
+				ethAccountConfig.getEthPrivateKeyAccount1());
+		ethAddressPrivateKeysMap.put(ethAccountConfig.getEthAddressAccount2(),
+				ethAccountConfig.getEthPrivateKeyAccount2());
+		ethAddressPrivateKeysMap.put(ethAccountConfig.getEthAddressAccount3(),
+				ethAccountConfig.getEthPrivateKeyAccount3());
+	}
 
 	@GetMapping("/eth")
 	public ModelAndView getEthHomePage() {
@@ -400,8 +421,54 @@ public class EthController {
 	// from UI (TokenFarm.contractAddress, Token.contractAddress, Account.address,
 	// AmountToBeUnStake[checks to prevent negative])
 
+	private void ethDAppDeployTokenFarm() {
+		String url = ethAccountConfig.getUrl();
+		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethPrivateKeyAccount1);
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+		DappToken dAppTokenContract = null;
+		try {
+			dAppTokenContract = DappToken.deploy(web3j, credentialsAccount1, contractGasProvider).send();
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		TokenFarm tokenFarmContract = null;
+		try {
+			tokenFarmContract = TokenFarm.deploy(web3j, credentialsAccount1,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT), dAppTokenContract.getContractAddress()).send();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		EthInput ethInput = new EthInput();
+		ethInput.setEthTokenAddress(dAppTokenContract.getContractAddress());
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethTokenFarmAddress = tokenFarmContract.getContractAddress();
+		ethDAppInit(ethInput);
+		System.out.println(ethPopulateTokenFarm(tokenFarmContract.getContractAddress(), ethPrivateKeyAccount1));
+	}
+
 	@GetMapping("/ethDApp")
-	public ModelAndView ethDApp() {
+	public ModelAndView ethDApp(
+			@RequestParam(name = "ethPrivateKeyAccount", required = false) String ethPrivateKeyAccount) {
+		if (ethTokenFarmAddress == null || (ethTokenFarmAddress != null && ethTokenFarmAddress.isEmpty())) {
+			ethDAppDeployTokenFarm();
+		}
+		ModelAndView modelAndView = new ModelAndView("ethDAppTokenFarm");
+		String url = ethAccountConfig.getUrl();
+		modelAndView.addObject("url", url);
+		if (ethPrivateKeyAccount == null || ethPrivateKeyAccount.isEmpty()) {
+			ethPrivateKeyAccount = ethAccountConfig.getEthPrivateKeyAccount1();
+		}
+		EthTokenFarm ethTokenFarm = ethPopulateTokenFarm(ethTokenFarmAddress, ethPrivateKeyAccount);
+		modelAndView.addObject("ethTokenFarm", ethTokenFarm);
+		modelAndView.addObject("ethAddressPrivateKeysMap", ethAddressPrivateKeysMap);
+		return modelAndView;
+	}
+
+	public ModelAndView ethDAppInit(@RequestBody EthInput ethInput) {
 		ModelAndView modelAndView = new ModelAndView("ethDApp");
 		String url = ethAccountConfig.getUrl();
 		modelAndView.addObject("url", url);
@@ -454,30 +521,51 @@ public class EthController {
 
 		// Deploy DApp and Token farm
 		try {
-			DappToken dAppTokenContract = DappToken.deploy(web3j, credentialsAccount1, contractGasProvider).send();
-			TokenFarm tokenFarmContract = TokenFarm.deploy(web3j, credentialsAccount1,
-					new StaticGasProvider(GAS_PRICE, GAS_LIMIT), dAppTokenContract.getContractAddress()).send();
+			DappToken dAppTokenContract = DappToken.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
+					contractGasProvider);
+			TokenFarm tokenFarmContract = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
 			modelAndView.addObject("tokenFarmContract", tokenFarmContract.getContractAddress());
 			modelAndView.addObject("tokenFarmContractName", tokenFarmContract.name());
-			BigInteger keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
+			BigInteger keptBalance = Convert.toWei(new BigInteger("10000").toString(), Convert.Unit.ETHER)
+					.toBigInteger();
 			BigInteger totalSupply = dAppTokenContract.totalSupply().send();
+			System.out.println("totalSupply: " + totalSupply);
 			TransactionReceipt transactionReceipt1 = dAppTokenContract
 					.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
 
+			TransactionReceipt transactionReceipt1A2 = dAppTokenContract.transfer(ethAddressAccount2,
+					Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger()).send();
+			dAppTokenContract.transfer(ethAddressAccount3,
+					Convert.toWei(new BigInteger("200").toString(), Convert.Unit.ETHER).toBigInteger()).send();
+			System.out.println("transactionReceipt1A2: " + transactionReceipt1A2);
+
 			modelAndView.addObject("transactionReceipt1", transactionReceipt1);
-			modelAndView.addObject("dAppTokenContract", dAppTokenContract.getContractAddress());
+			modelAndView.addObject("dAppTokenContract",
+					dAppTokenContract.getContractAddress() + " -- A2 " + dAppTokenContract.getContractAddress());
 			modelAndView.addObject("dAppTokenContractName", dAppTokenContract.name().send());
-			modelAndView.addObject("dAppTokenContractBalance",
-					Convert.fromWei(dAppTokenContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER));
+			modelAndView.addObject("dAppTokenContractBalance", Convert
+					.fromWei(dAppTokenContract.balanceOf(ethAddressAccount1).send().toString(), Unit.ETHER) + " -- A2 "
+					+ Convert.fromWei(dAppTokenContract.balanceOf(ethAddressAccount2).send().toString(), Unit.ETHER));
 
 			MockWeth mockWETHContract = null;
 			if (ethAccountConfig.getEthWethToken() == null || ethAccountConfig.getEthWethToken().isEmpty()) {
 				mockWETHContract = MockWeth.deploy(web3j, credentialsAccount1, contractGasProvider).send();
-				totalSupply = mockWETHContract.totalSupply().send();
-				keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
-//						TransactionReceipt transactionReceipt2 = dAppTokenContract
-//								.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
-//						modelAndView.addObject("transactionReceipt2", transactionReceipt2);
+				// Account 2 Mint Token 2
+				ethInput = new EthInput();
+				ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+				ethInput.setEthTokenAddress(mockWETHContract.getContractAddress());
+				ethInput.setEthAmount("100");
+				ethInput.setEthAccount(ethAddressAccount2);
+				ethDAppMint(ethInput);
+
+				// Account 3 Mint Token 2
+				ethInput = new EthInput();
+				ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+				ethInput.setEthTokenAddress(mockWETHContract.getContractAddress());
+				ethInput.setEthAmount("300");
+				ethInput.setEthAccount(ethAddressAccount3);
+				ethDAppMint(ethInput);
 			} else {
 				mockWETHContract = MockWeth.load(ethAccountConfig.getEthWethToken(), web3j, credentialsAccount1,
 						contractGasProvider);
@@ -489,11 +577,22 @@ public class EthController {
 			MockDAI mockDaiContract = null;
 			if (ethAccountConfig.getEthFauToken() == null || ethAccountConfig.getEthFauToken().isEmpty()) {
 				mockDaiContract = MockDAI.deploy(web3j, credentialsAccount1, contractGasProvider).send();
-				keptBalance = Convert.toWei(new BigInteger("100").toString(), Convert.Unit.ETHER).toBigInteger();
-				totalSupply = mockDaiContract.totalSupply().send();
-//						TransactionReceipt transactionReceipt3 = dAppTokenContract
-//								.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
-//						modelAndView.addObject("transactionReceipt3", transactionReceipt3);
+
+				// Account 2 Mint Token 3
+				ethInput = new EthInput();
+				ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+				ethInput.setEthTokenAddress(mockDaiContract.getContractAddress());
+				ethInput.setEthAmount("200");
+				ethInput.setEthAccount(ethAddressAccount2);
+				ethDAppMint(ethInput);
+
+				// Account 3 Mint Token 3
+				ethInput = new EthInput();
+				ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+				ethInput.setEthTokenAddress(mockDaiContract.getContractAddress());
+				ethInput.setEthAmount("400");
+				ethInput.setEthAccount(ethAddressAccount3);
+				ethDAppMint(ethInput);
 			} else {
 				mockDaiContract = MockDAI.load(ethAccountConfig.getEthFauToken(), web3j, credentialsAccount1,
 						contractGasProvider);
@@ -537,130 +636,298 @@ public class EthController {
 			System.out.println("FAU  Token Address: " + mockDaiContract.getContractAddress());
 			System.out.println("WETH Token Address: " + mockWETHContract.getContractAddress());
 			System.out.println("--------------------------------------------------------");
-
-			// account 1 token 1
-			BigInteger amount = Convert.toWei("10", Convert.Unit.ETHER).toBigInteger();
-			EthInput ethInput = new EthInput();
-			ethInput.setEthAccount(ethAddressAccount1);
-			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
-			ethInput.setEthAmount(amount);
-			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			ethInput.setEthTokenAddress(dAppTokenContract.getContractAddress());
-			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
-			ethDAppStake(ethInput);
+//			ethDAppAddDefaultValues(tokenFarmContract.getContractAddress(), ethAvailableTokenAddress, dAppTokenContract,
+//					mockDaiContract, mockWETHContract);
 			System.out.println("--------------------------------------------------------");
-
-			// account 1 token 2
-			amount = Convert.toWei("20", Convert.Unit.ETHER).toBigInteger();
-			ethInput = new EthInput();
-			ethInput.setEthAccount(ethAddressAccount1);
-			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
-			ethInput.setEthAmount(amount);
-			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			ethInput.setEthTokenAddress(mockDaiContract.getContractAddress());
-			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
-			ethDAppStake(ethInput);
-			System.out.println("--------------------------------------------------------");
-
-			// account 3 token 2
-			amount = Convert.toWei("30", Convert.Unit.ETHER).toBigInteger();
-			ethInput = new EthInput();
-			ethInput.setEthAccount(ethAddressAccount1);
-			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
-			ethInput.setEthAmount(amount);
-			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			ethInput.setEthTokenAddress(mockWETHContract.getContractAddress());
-			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
-			ethDAppStake(ethInput);
-			System.out.println("--------------------------------------------------------");
-			// account 2 token 1
-			amount = Convert.toWei("40", Convert.Unit.ETHER).toBigInteger();
-			ethInput = new EthInput();
-			ethInput.setEthAccount(ethAddressAccount2);
-			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
-			ethInput.setEthAmount(amount);
-			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			ethInput.setEthTokenAddress(dAppTokenContract.getContractAddress());
-			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
-			ethDAppStake(ethInput);
-			System.out.println("--------------------------------------------------------");
-
-			// account 1 token 2
-			amount = Convert.toWei("50", Convert.Unit.ETHER).toBigInteger();
-			ethInput = new EthInput();
-			ethInput.setEthAccount(ethAddressAccount2);
-			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
-			ethInput.setEthAmount(amount);
-			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			ethInput.setEthTokenAddress(mockDaiContract.getContractAddress());
-			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
-			ethDAppStake(ethInput);
-			System.out.println("--------------------------------------------------------");
-
-			// account 3 token 2
-			amount = Convert.toWei("60", Convert.Unit.ETHER).toBigInteger();
-			ethInput = new EthInput();
-			ethInput.setEthAccount(ethAddressAccount2);
-			ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
-			ethInput.setEthAmount(amount);
-			ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
-			ethInput.setEthTokenAddress(mockWETHContract.getContractAddress());
-			ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
-			ethDAppStake(ethInput);
-			System.out.println("--------------------------------------------------------");
-			EthTokenFarm ethTokenFarm = populateTokenFarm(tokenFarmContract.getContractAddress(),
-					ethPrivateKeyAccount1);
-			System.out.println("--------------------------------------------------------");
-			modelAndView.addObject("ethTokenFarm", ethTokenFarm);
-			// print balance
-			printAllBalance(tokenFarmContract, ethAddressAccount1, dAppTokenContract, mockWETHContract, mockDaiContract,
-					modelAndView);
-			// print balance
-			printAllBalance(tokenFarmContract, ethAddressAccount2, dAppTokenContract, mockWETHContract, mockDaiContract,
-					modelAndView);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return modelAndView;
 	}
 
-	private EthTokenFarm populateTokenFarm(String contractAddress, String ownerCreds) {
-		// load token farm contract
+	@GetMapping("/ethDAppAddDefaultValues")
+	private void ethDAppAddDefaultValues(@RequestParam("contractAddress") String contractAddress,
+			@RequestParam("dAppTokenContractAddress") String dAppTokenContractAddress,
+			@RequestParam("mockDaiContractAddress") String mockDaiContractAddress,
+			@RequestParam("mockWETHContractAddress") String mockWETHContractAddress) {
+		List<String> ethAvailableTokenAddress = new ArrayList<>();
 		String url = ethAccountConfig.getUrl();
+		String ethAddressAccount1 = ethAccountConfig.getEthAddressAccount1();
+		String ethPrivateKeyAccount1 = ethAccountConfig.getEthPrivateKeyAccount1();
+
+		String ethAddressAccount2 = ethAccountConfig.getEthAddressAccount2();
+		String ethPrivateKeyAccount2 = ethAccountConfig.getEthPrivateKeyAccount2();
+
+		String ethAddressAccount3 = ethAccountConfig.getEthAddressAccount3();
+		String ethPrivateKeyAccount3 = ethAccountConfig.getEthPrivateKeyAccount3();
 		Web3j web3j = Web3j.build(new HttpService(url));
-		Credentials credentialsAccount1 = Credentials.create(ownerCreds);
+		Credentials credentialsAccount1 = Credentials.create(ethPrivateKeyAccount1);
+
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+
 		TokenFarm tokenFarmContract = TokenFarm.load(contractAddress, web3j, credentialsAccount1,
 				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+		// account 1 token 1
+
+		EthInput ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount1);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+		ethInput.setEthAmount("10");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(dAppTokenContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+
+		// account 1 token 2
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount1);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+		ethInput.setEthAmount("20");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(mockDaiContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+
+		// account 1 token 3
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount1);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount1);
+		ethInput.setEthAmount("30");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(mockWETHContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+
+		System.out.println("--------------------------------------------------------");
+		// account 2 token 1
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount2);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
+		ethInput.setEthAmount("40");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(dAppTokenContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+
+		// account 2 token 2
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount2);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
+		ethInput.setEthAmount("50");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(mockDaiContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+
+		// account 2 token 3
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount2);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount2);
+		ethInput.setEthAmount("60");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(mockWETHContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+		// account 3 token 1
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount3);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount3);
+		ethInput.setEthAmount("70");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(dAppTokenContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+
+		// account 3 token 2
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount3);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount3);
+		ethInput.setEthAmount("80");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(mockDaiContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+
+		// account 3 token 3
+		ethInput = new EthInput();
+		ethInput.setEthAccount(ethAddressAccount2);
+		ethInput.setEthAccountPrivateKey(ethPrivateKeyAccount3);
+		ethInput.setEthAmount("90");
+		ethInput.setEthAvailableTokenAddress(ethAvailableTokenAddress);
+		ethInput.setEthTokenAddress(mockWETHContractAddress);
+		ethInput.setEthTokenFarmAddress(tokenFarmContract.getContractAddress());
+		ethDAppStake(ethInput);
+		System.out.println("--------------------------------------------------------");
+		// print balance
+//		printAllBalance(tokenFarmContract, ethAddressAccount1, dAppTokenContract, mockWETHContract, mockDaiContract);
+//		// print balance
+//		printAllBalance(tokenFarmContract, ethAddressAccount2, dAppTokenContract, mockWETHContract, mockDaiContract);
+//		// print balance
+//		printAllBalance(tokenFarmContract, ethAddressAccount3, dAppTokenContract, mockWETHContract, mockDaiContract);
+		System.out.println("--------------------------------------------------------");
+
+	}
+
+	private EthTokenFarm ethPopulateTokenFarm(String contractAddress, String ownerCreds) {
+		// load token farm contract
 		EthTokenFarm ethTokenFarm = new EthTokenFarm();
-		ethTokenFarm.setContractAddress(tokenFarmContract.getContractAddress());
-
-		// populate available tokens
-		List<String> lst = new ArrayList<>();
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
 		try {
-			for (int i = 0; i < 3; i++) {
-				lst.add(tokenFarmContract.allowedTokens(new BigInteger(String.valueOf(i))).send());
+			Credentials credentialsAccount1 = Credentials.create(ownerCreds);
+			ethTokenFarm.setCurrentUserAddress(credentialsAccount1.getAddress());
+
+			TokenFarm tokenFarmContract = TokenFarm.load(contractAddress, web3j, credentialsAccount1,
+					new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+			ethTokenFarm.setContractAddress(tokenFarmContract.getContractAddress());
+
+			// populate available tokens
+			Map<String, String> lst = new HashMap<>();
+			try {
+				for (int i = 0; i < 3; i++) {
+					String tempToken = tokenFarmContract.allowedTokens(new BigInteger(String.valueOf(i))).send();
+					MockERC20 mockERC20 = MockERC20.load(tempToken, web3j, credentialsAccount1,
+							new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+					lst.put(tempToken, mockERC20.name().send());
+				}
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		ethTokenFarm.setEthAvailableTokenAddress(lst);
-		//
+			ethTokenFarm.setEthAvailableTokenAddress(lst);
+			//
 
-		// populate available accounts
-		List<EthAccount> ethAvailableAccounts = new ArrayList<>();
-		try {
-			for (int i = 0; i < 2; i++) {
-				EthAccount ethAvailableAccount = new EthAccount();
-				ethAvailableAccount.setEthAccount(tokenFarmContract.stakers(new BigInteger(String.valueOf(i))).send());
+			// populate available accounts
+			List<EthAccount> ethAvailableAccounts = new ArrayList<>();
+			try {
+				for (int i = 0; i < 3; i++) {
+					EthAccount ethAvailableAccount = new EthAccount();
+					try {
+						ethAvailableAccount
+								.setEthAccount(tokenFarmContract.stakers(new BigInteger(String.valueOf(i))).send());
+						if (credentialsAccount1.getAddress().equalsIgnoreCase(ethAvailableAccount.getEthAccount())) {
+							ethTokenFarm.setFlagAnyTokenStaked(true);
+						}
+						if (credentialsAccount1.getAddress().equalsIgnoreCase(ethAvailableAccount.getEthAccount())) {
+							ethAvailableAccount.setEthAccountPrivateKey(ownerCreds);
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+					if (ethAvailableAccount.getEthAccount() != null && !ethAvailableAccount.getEthAccount().isEmpty()) {
+						try {
+							BigInteger ethUserTotalValue = tokenFarmContract
+									.getUserTotalValue(ethAvailableAccount.getEthAccount()).send();
+							ethAvailableAccount.setEthUserTotalValue(
+									Convert.fromWei(ethUserTotalValue.toString(), Unit.ETHER).toBigInteger());
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+
+						List<EthToken> ethTokens = new ArrayList<>();
+						for (Entry<String, String> ethAvailableTokenAddress : ethTokenFarm.getEthAvailableTokenAddress()
+								.entrySet()) {
+							EthToken ethToken = new EthToken();
+							ethToken.setEthTokenAddress(ethAvailableTokenAddress.getKey());
+							ethToken.setEthTokenName(ethAvailableTokenAddress.getValue());
+							try {
+								BigDecimal temp = Convert
+										.fromWei(
+												tokenFarmContract.stakingBalance(ethAvailableTokenAddress.getKey(),
+														ethAvailableAccount.getEthAccount()).send().toString(),
+												Unit.ETHER);
+								ethToken.setEthTokenBalance(temp.toBigInteger());
+
+							} catch (Exception e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							try {
+								BigInteger ethUserTokenStakingBalanceEthValue = tokenFarmContract
+										.getUserTokenStakingBalanceEthValue(ethAvailableAccount.getEthAccount(),
+												ethAvailableTokenAddress.getKey())
+										.send();
+								BigDecimal temp = Convert.fromWei(ethUserTokenStakingBalanceEthValue.toString(),
+										Unit.ETHER);
+								ethToken.setEthUserTokenStakingBalanceEthValue(temp.toBigInteger());
+
+							} catch (Exception e) {
+								System.out.println("setEthUserTokenStakingBalanceEthValue Error");
+								e.printStackTrace();
+							}
+							try {
+								Tuple2<BigInteger, BigInteger> tokenEthPrice = tokenFarmContract
+										.getTokenEthPrice(ethAvailableTokenAddress.getKey()).send();
+								BigDecimal temp = Convert.fromWei(tokenEthPrice.component1().toString(), Unit.ETHER);
+								ethToken.setEthTokenEthPrice(tokenEthPrice.component1());
+
+							} catch (Exception e) {
+								System.out.println("setEthTokenEthPrice Error");
+								e.printStackTrace();
+							}
+							try {
+
+								if (credentialsAccount1.getAddress()
+										.equalsIgnoreCase(ethAvailableAccount.getEthAccount())) {
+									ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE,
+											GAS_LIMIT);
+									MockERC20 ethAvailableToken = MockERC20.load(ethAvailableTokenAddress.getKey(),
+											web3j, credentialsAccount1, contractGasProvider);
+									BigDecimal temp = Convert.fromWei(ethAvailableToken
+											.balanceOf(ethAvailableAccount.getEthAccount()).send().toString(),
+											Unit.ETHER);
+									ethToken.setEthAccountBalance(temp.toBigInteger());
+								}
+							} catch (Exception e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							ethTokens.add(ethToken);
+						}
+						ethAvailableAccount.setEthToken(ethTokens);
+						if (credentialsAccount1.getAddress().equalsIgnoreCase(ethAvailableAccount.getEthAccount())) {
+							ethAvailableAccounts.add(0, ethAvailableAccount);
+						} else {
+							ethAvailableAccounts.add(ethAvailableAccount);
+						}
+					}
+				}
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			ethTokenFarm.setEthAvailableAccounts(ethAvailableAccounts);
+			//
+
+			try {
+				ethTokenFarm.setOwnerAddress(tokenFarmContract.owner().send());
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			if (!ethTokenFarm.isFlagAnyTokenStaked()) {
+				// not token is staked, lets add current account for staking
+				EthAccount currentAccount = new EthAccount();
+				currentAccount.setEthAccount(credentialsAccount1.getAddress());
+				currentAccount.setEthAccountPrivateKey(ownerCreds);
 				List<EthToken> ethTokens = new ArrayList<>();
-				for (String ethAvailableTokenAddress : ethTokenFarm.getEthAvailableTokenAddress()) {
+				for (Entry<String, String> ethAvailableTokenAddress : ethTokenFarm.getEthAvailableTokenAddress()
+						.entrySet()) {
 					EthToken ethToken = new EthToken();
-					ethToken.setEthTokenAddress(ethAvailableTokenAddress);
+					ethToken.setEthTokenAddress(ethAvailableTokenAddress.getKey());
+					ethToken.setEthTokenName(ethAvailableTokenAddress.getValue());
 					try {
 						BigDecimal temp = Convert.fromWei(tokenFarmContract
-								.stakingBalance(ethAvailableTokenAddress, ethAvailableAccount.getEthAccount()).send()
-								.toString(), Unit.ETHER);
+								.stakingBalance(ethAvailableTokenAddress.getKey(), currentAccount.getEthAccount())
+								.send().toString(), Unit.ETHER);
 						ethToken.setEthTokenBalance(temp.toBigInteger());
 
 					} catch (Exception e) {
@@ -668,13 +935,35 @@ public class EthController {
 						e.printStackTrace();
 					}
 					try {
+						BigInteger ethUserTokenStakingBalanceEthValue = tokenFarmContract
+								.getUserTokenStakingBalanceEthValue(currentAccount.getEthAccount(),
+										ethAvailableTokenAddress.getKey())
+								.send();
+						BigDecimal temp = Convert.fromWei(ethUserTokenStakingBalanceEthValue.toString(), Unit.ETHER);
+						ethToken.setEthUserTokenStakingBalanceEthValue(temp.toBigInteger());
 
-						if (credentialsAccount1.getAddress().equalsIgnoreCase(ethAvailableAccount.getEthAccount())) {
+					} catch (Exception e) {
+						System.out.println("setEthUserTokenStakingBalanceEthValue Error");
+						e.printStackTrace();
+					}
+					try {
+						Tuple2<BigInteger, BigInteger> tokenEthPrice = tokenFarmContract
+								.getTokenEthPrice(ethAvailableTokenAddress.getKey()).send();
+						BigDecimal temp = Convert.fromWei(tokenEthPrice.component1().toString(), Unit.ETHER);
+						ethToken.setEthTokenEthPrice(tokenEthPrice.component1());
+
+					} catch (Exception e) {
+						System.out.println("setEthTokenEthPrice Error");
+						e.printStackTrace();
+					}
+					try {
+
+						if (credentialsAccount1.getAddress().equalsIgnoreCase(currentAccount.getEthAccount())) {
 							ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
-							MockERC20 ethAvailableToken = MockERC20.load(ethAvailableTokenAddress, web3j,
+							MockERC20 ethAvailableToken = MockERC20.load(ethAvailableTokenAddress.getKey(), web3j,
 									credentialsAccount1, contractGasProvider);
 							BigDecimal temp = Convert.fromWei(
-									ethAvailableToken.balanceOf(ethAvailableAccount.getEthAccount()).send().toString(),
+									ethAvailableToken.balanceOf(currentAccount.getEthAccount()).send().toString(),
 									Unit.ETHER);
 							ethToken.setEthAccountBalance(temp.toBigInteger());
 						}
@@ -682,31 +971,22 @@ public class EthController {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-
 					ethTokens.add(ethToken);
 				}
-				ethAvailableAccount.setEthToken(ethTokens);
-				ethAvailableAccounts.add(ethAvailableAccount);
+				currentAccount.setEthToken(ethTokens);
+
+				ethTokenFarm.getEthAvailableAccounts().add(0, currentAccount);
 			}
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		ethTokenFarm.setEthAvailableAccounts(ethAvailableAccounts);
-		//
-
-		try {
-			ethTokenFarm.setOwnerAddress(tokenFarmContract.owner().send());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		System.out.println("ethTokenFarm: " + ethTokenFarm);
 		return ethTokenFarm;
 	}
 
-	@PostMapping("/ethDApp/mint")
+	@PostMapping("/ethDAppMint")
 	public ModelAndView ethDAppMint(@RequestBody EthInput ethInput) {
+		System.out.println("---------------------ETH MINT---------------------------");
 		System.out.println(ethInput);
 		ModelAndView modelAndView = new ModelAndView("ethDApp");
 		String url = ethAccountConfig.getUrl();
@@ -714,42 +994,49 @@ public class EthController {
 		Credentials credentialsAccount1 = Credentials.create(ethInput.getEthAccountPrivateKey());
 		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
 
-		TokenFarm tokenFarmContract = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
-				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
-		BigInteger amount = ethInput.getEthAmount();
-		// FAU
-		MockERC20 mockERC20FAU = MockERC20.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
+		MockERC20 mockERC20 = MockERC20.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
 				contractGasProvider);
-//		mockERC20FAU.allowance(owner, spender);
-		TransactionReceipt transactionReceipt6 = null;
-		MockWeth mockWETHContract = null;
-		if (ethAccountConfig.getEthWethToken() == null || ethAccountConfig.getEthWethToken().isEmpty()) {
-			try {
-				mockWETHContract = MockWeth.deploy(web3j, credentialsAccount1, contractGasProvider).send();
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-//			TransactionReceipt transactionReceipt2 = dAppTokenContract
-//					.transfer(tokenFarmContract.getContractAddress(), totalSupply.subtract(keptBalance)).send();
-//			modelAndView.addObject("transactionReceipt2", transactionReceipt2);
-		} else {
-			mockWETHContract = MockWeth.load(ethAccountConfig.getEthWethToken(), web3j, credentialsAccount1,
-					contractGasProvider);
+		try {
+			BigInteger amount = Convert.toWei(ethInput.getEthAmount(), Convert.Unit.ETHER).toBigInteger();
+			TransactionReceipt transactionReceipt6 = mockERC20.transfer(ethInput.getEthAccount(), amount).send();
+			System.out.println(transactionReceipt6);
+			modelAndView.addObject("", transactionReceipt6);
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
-		modelAndView.addObject(
-				"transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress() + "_mint",
-				transactionReceipt6);
-		System.out.println("transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress()
-				+ "_mint: " + transactionReceipt6);
-
+		System.out.println("---------------------ETH MINT END-----------------------");
 		return modelAndView;
 	}
 
-	@PostMapping("/ethDApp/stake")
-	public ModelAndView ethDAppStake(@RequestBody EthInput ethInput) {
+	@PostMapping("/ethDAppIssueTokens")
+	public ModelAndView ethDAppissueTokens(@ModelAttribute EthInput ethInput) {
+		System.out.println("---------------------ETH ISSUE TOKENS---------------------------");
 		System.out.println(ethInput);
-		ModelAndView modelAndView = new ModelAndView("ethDApp");
+		ModelAndView modelAndView = new ModelAndView("ethDAppTokenFarm");
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethInput.getEthAccountPrivateKey());
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+		TokenFarm mockERC20 = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
+				contractGasProvider);
+		try {
+			TransactionReceipt tranasction = mockERC20.issueTokens().send();
+			System.out.println("issue tokens tranasction: " + tranasction);
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		System.out.println("---------------------ETH ISSUE TOKENS END-----------------------");
+		ModelAndView tempModel = ethDApp(ethInput.getEthAccountPrivateKey());
+		modelAndView.addAllObjects(tempModel.getModelMap());
+		return modelAndView;
+	}
+
+	@PostMapping("/ethDAppStake")
+	public ModelAndView ethDAppStake(@ModelAttribute EthInput ethInput) {
+		System.out.println(ethInput);
+		ModelAndView modelAndView = new ModelAndView("ethDAppTokenFarm");
 		String url = ethAccountConfig.getUrl();
 		Web3j web3j = Web3j.build(new HttpService(url));
 		Credentials credentialsAccount1 = Credentials.create(ethInput.getEthAccountPrivateKey());
@@ -757,7 +1044,7 @@ public class EthController {
 
 		TokenFarm tokenFarmContract = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
 				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
-		BigInteger amount = ethInput.getEthAmount();
+		BigInteger amount = Convert.toWei(ethInput.getEthAmount(), Convert.Unit.ETHER).toBigInteger();
 		// FAU
 		MockERC20 mockERC20FAU = MockERC20.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
 				contractGasProvider);
@@ -785,17 +1072,45 @@ public class EthController {
 
 		System.out.println("transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress()
 				+ ": " + transactionReceipt6);
+		ModelAndView tempModel = ethDApp(ethInput.getEthAccountPrivateKey());
+		modelAndView.addAllObjects(tempModel.getModelMap());
 		return modelAndView;
 	}
 
-	@GetMapping("/ethDApp/unstake")
-	public ModelAndView ethDAppUnstake() {
-		ModelAndView modelAndView = new ModelAndView("ethDApp");
+	@PostMapping("/ethDAppUnstake")
+	public ModelAndView ethDAppUnstake(@ModelAttribute EthInput ethInput) {
+		System.out.println(ethInput);
+		ModelAndView modelAndView = new ModelAndView("ethDAppTokenFarm");
+		String url = ethAccountConfig.getUrl();
+		Web3j web3j = Web3j.build(new HttpService(url));
+		Credentials credentialsAccount1 = Credentials.create(ethInput.getEthAccountPrivateKey());
+		ContractGasProvider contractGasProvider = new StaticGasProvider(GAS_PRICE, GAS_LIMIT);
+
+		TokenFarm tokenFarmContract = TokenFarm.load(ethInput.getEthTokenFarmAddress(), web3j, credentialsAccount1,
+				new StaticGasProvider(GAS_PRICE, GAS_LIMIT));
+		// FAU
+		MockERC20 mockERC20FAU = MockERC20.load(ethInput.getEthTokenAddress(), web3j, credentialsAccount1,
+				contractGasProvider);
+		TransactionReceipt transactionReceipt7 = null;
+		try {
+			transactionReceipt7 = tokenFarmContract.unstakeTokens(mockERC20FAU.getContractAddress()).send();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		modelAndView.addObject(
+				"transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress(),
+				transactionReceipt7);
+
+		System.out.println("transactionReceipt_" + ethInput.getEthAccount() + "_" + mockERC20FAU.getContractAddress()
+				+ ": " + transactionReceipt7);
+		ModelAndView tempModel = ethDApp(ethInput.getEthAccountPrivateKey());
+		modelAndView.addAllObjects(tempModel.getModelMap());
 		return modelAndView;
 	}
 
 	public void printAllBalance(TokenFarm tokenFarmContract, String ethAddressAccount1, DappToken dAppTokenContract,
-			MockWeth mockWETHContract, MockDAI mockDaiContract, ModelAndView modelAndView) {
+			MockWeth mockWETHContract, MockDAI mockDaiContract) {
 		System.out.println("--------------------------------------------------------");
 		try {
 			BigDecimal temp = Convert.fromWei(tokenFarmContract

@@ -1,15 +1,14 @@
 package io.ysf.springsecurityjwtconsumer.dto;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
 public class EthInput {
 	private String ethAccount;
 	private String ethAccountPrivateKey;
-	private String ethTokenAddress;
-	private String ethTokenFarmAddress;
-	private BigInteger ethAmount;
+	private String ethTokenAddress = "";
+	private String ethTokenFarmAddress = "";
+	private String ethAmount;
 
 	private List<String> ethAvailableTokenAddress = new ArrayList<>();
 
@@ -37,11 +36,11 @@ public class EthInput {
 		this.ethTokenAddress = ethTokenAddress;
 	}
 
-	public BigInteger getEthAmount() {
+	public String getEthAmount() {
 		return ethAmount;
 	}
 
-	public void setEthAmount(BigInteger ethAmount) {
+	public void setEthAmount(String ethAmount) {
 		this.ethAmount = ethAmount;
 	}
 

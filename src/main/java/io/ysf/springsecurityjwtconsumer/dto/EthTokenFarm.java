@@ -1,19 +1,23 @@
 package io.ysf.springsecurityjwtconsumer.dto;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class EthTokenFarm {
 	private String contractAddress;
 	private String ownerAddress;
-	private List<String> ethAvailableTokenAddress = new ArrayList<>();
+	private String currentUserAddress;
+	private Map<String, String> ethAvailableTokenAddress = new HashMap<>();
 	private List<EthAccount> ethAvailableAccounts = new ArrayList<>();
+	private boolean flagAnyTokenStaked = false;
 
-	public List<String> getEthAvailableTokenAddress() {
+	public Map<String, String> getEthAvailableTokenAddress() {
 		return ethAvailableTokenAddress;
 	}
 
-	public void setEthAvailableTokenAddress(List<String> ethAvailableTokenAddress) {
+	public void setEthAvailableTokenAddress(Map<String, String> ethAvailableTokenAddress) {
 		this.ethAvailableTokenAddress = ethAvailableTokenAddress;
 	}
 
@@ -41,11 +45,28 @@ public class EthTokenFarm {
 		this.ownerAddress = ownerAddress;
 	}
 
+	public String getCurrentUserAddress() {
+		return currentUserAddress;
+	}
+
+	public void setCurrentUserAddress(String currentUserAddress) {
+		this.currentUserAddress = currentUserAddress;
+	}
+
+	public boolean isFlagAnyTokenStaked() {
+		return flagAnyTokenStaked;
+	}
+
+	public void setFlagAnyTokenStaked(boolean flagAnyTokenStaked) {
+		this.flagAnyTokenStaked = flagAnyTokenStaked;
+	}
+
 	@Override
 	public String toString() {
 		return "EthTokenFarm [contractAddress=" + contractAddress + ", ownerAddress=" + ownerAddress
-				+ ", ethAvailableTokenAddress=" + ethAvailableTokenAddress + ", ethAvailableAccounts="
-				+ ethAvailableAccounts + "]";
+				+ ", currentUserAddress=" + currentUserAddress + ", ethAvailableTokenAddress="
+				+ ethAvailableTokenAddress + ", ethAvailableAccounts=" + ethAvailableAccounts + ", flagAnyTokenStaked="
+				+ flagAnyTokenStaked + "]";
 	}
 
 }
