@@ -78,6 +78,11 @@ public class EthController {
 		ModelAndView modelAndView = new ModelAndView("ethHome");
 		return modelAndView;
 	}
+	@GetMapping("/")
+	public ModelAndView getHomePage() {
+		ModelAndView modelAndView = new ModelAndView("ethHome");
+		return modelAndView;
+	}
 
 	@GetMapping("/ethConnectWallet")
 	public ModelAndView ethConnectWallet() {
